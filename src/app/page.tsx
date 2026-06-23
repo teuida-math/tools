@@ -40,8 +40,8 @@ export default function Home() {
           <h1 className="text-4xl font-bold leading-tight mb-4">
             수학, 눈으로 탐구하다
           </h1>
-          <p className="text-white/60 text-lg max-w-xl">
-            트이다 수학학원이 만드는 인터랙티브 수학 학습 도구 모음입니다.<br />
+          <p className="text-white/60 text-lg max-w-xl break-keep">
+            트이다 수학학원이 만드는 인터랙티브 수학 학습 도구 모음입니다.
             개념을 직접 조작하며 깊이 있게 이해하세요.
           </p>
         </div>
@@ -63,7 +63,7 @@ export default function Home() {
               <h3 className="text-navy font-bold text-lg mb-2 group-hover:text-orange transition-colors">
                 {tool.title}
               </h3>
-              <p className="text-muted text-sm leading-relaxed mb-4">{tool.desc}</p>
+              <p className="text-muted text-sm leading-relaxed mb-4 break-keep">{tool.desc}</p>
               <div className="flex flex-wrap gap-1.5">
                 {tool.tags.map((tag) => (
                   <span

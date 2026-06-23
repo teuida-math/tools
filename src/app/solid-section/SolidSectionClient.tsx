@@ -42,7 +42,7 @@ export default function SolidSectionClient() {
             ← 도구 목록으로
           </Link>
           <h1 className="text-2xl font-bold text-navy mb-2">입체도형 단면 탐구기</h1>
-          <p className="text-muted text-sm">
+          <p className="text-muted text-sm break-keep">
             입체도형을 평면으로 잘라 단면의 모양을 직접 확인하세요.
           </p>
         </div>
@@ -84,14 +84,14 @@ export default function SolidSectionClient() {
             {tab === 'polyhedron' ? '다면체 단면 — 알아두기' : '회전체 단면 — 알아두기'}
           </h2>
           {tab === 'polyhedron' ? (
-            <ul className="text-sm text-muted space-y-1.5 list-disc list-inside">
+            <ul className="text-sm text-muted space-y-1.5 list-disc list-inside break-keep">
               <li>정육면체를 수평으로 자르면 <strong className="text-navy">정사각형</strong></li>
               <li>꼭짓점을 지나도록 자르면 <strong className="text-navy">삼각형</strong>이 나타납니다</li>
               <li>정팔면체의 중간을 수평으로 자르면 <strong className="text-navy">정사각형</strong></li>
               <li>슬라이더를 천천히 움직이며 단면 변화를 관찰하세요</li>
             </ul>
           ) : (
-            <ul className="text-sm text-muted space-y-1.5 list-disc list-inside">
+            <ul className="text-sm text-muted space-y-1.5 list-disc list-inside break-keep">
               <li>원기둥을 수평으로 자르면 <strong className="text-navy">원</strong></li>
               <li>원기둥을 수직으로 자르면 <strong className="text-navy">직사각형</strong></li>
               <li>원뿔을 수평으로 자르면 <strong className="text-navy">원</strong>, 꼭짓점을 지나면 <strong className="text-navy">점</strong></li>

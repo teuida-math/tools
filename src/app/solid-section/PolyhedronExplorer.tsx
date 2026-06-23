@@ -527,7 +527,7 @@ export default function PolyhedronExplorer() {
         </span>
       </div>
 
-      <p className="text-xs text-muted leading-relaxed">
+      <p className="text-xs text-muted leading-relaxed break-keep">
         점을 클릭해 선택하세요. 3개 이상 선택하면 그 점들을 지나는 평면으로 단면을 자릅니다.
         드래그로 도형을 회전하고, 스크롤로 확대·축소할 수 있습니다.
       </p>

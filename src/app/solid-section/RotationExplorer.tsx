@@ -660,7 +660,7 @@ export default function RotationExplorer() {
         </button>
       </div>
 
-      <p className="text-xs text-muted">
+      <p className="text-xs text-muted break-keep">
         드래그로 회전, 스크롤/핀치로 확대·축소합니다.
       </p>
     </div>
