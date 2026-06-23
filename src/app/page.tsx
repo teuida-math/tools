@@ -14,17 +14,17 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen bg-paper">
       {/* Header */}
-      <header className="border-b border-navy/10 bg-navy">
+      <header className="border-b border-navy/15 bg-paper">
         <div className="max-w-5xl mx-auto px-6 py-5 flex items-center gap-3">
-          <span className="text-gold font-bold text-xl tracking-tight">트이다</span>
-          <span className="text-white/40 text-xl">|</span>
-          <span className="text-white/80 text-sm font-medium">수학 학습 도구</span>
+          <span className="text-orange font-bold text-xl tracking-tight">트이다</span>
+          <span className="text-navy/20 text-xl">|</span>
+          <span className="text-muted text-sm font-medium">수학 학습 도구</span>
         </div>
       </header>
 
       {/* Hero */}
       <section className="bg-navy text-white">
-        <div className="max-w-5xl mx-auto px-6 py-16">
+        <div className="max-w-5xl mx-auto px-6 py-10">
           <p className="text-gold text-sm font-semibold tracking-widest uppercase mb-3">
             Teuida Studio
           </p>

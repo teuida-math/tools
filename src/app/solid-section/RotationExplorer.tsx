@@ -101,6 +101,49 @@ function getSection(tris: Triangle[], tilt: number, pos: number): SectionResult 
   return { poly: pts, normal, u, v: vv, center: c, point };
 }
 
+// ── Analytical section for tilt ≈ 0° (축에 수직) ──────────────────────
+// When tilt → 0° the cutting plane is nearly horizontal, making it nearly
+// parallel to the top/bottom cap triangles and sphere surface strips.
+// We compute the exact horizontal cross-section (a circle) analytically.
+function getPerpendicularSection(solidKey: SolidKey, tilt: number, pos: number): SectionResult | null {
+  const { point, normal } = planeFromState(tilt, pos);
+
+  // Orthonormal frame in the cutting plane
+  const u = new THREE.Vector3(1, 0, 0);
+  u.sub(normal.clone().multiplyScalar(normal.dot(u))).normalize();
+  const v = normal.clone().cross(u).normalize();
+
+  // Circle radius at height pos for each solid
+  let r: number;
+  switch (solidKey) {
+    case 'cylinder':
+      if (Math.abs(pos) > 1) return null;
+      r = 1;
+      break;
+    case 'cone':
+      if (pos < -1 || pos > 1) return null;
+      r = (1 - pos) / 2;
+      break;
+    case 'frustum':
+      if (Math.abs(pos) > 1) return null;
+      r = 0.75 - 0.25 * pos; // lerp(1, 0.5) over y in [-1,1]
+      break;
+    case 'sphere':
+      if (Math.abs(pos) >= 1) return null;
+      r = Math.sqrt(1 - pos * pos);
+      break;
+  }
+  if (r < 1e-4) return null;
+
+  const poly: THREE.Vector3[] = [];
+  for (let i = 0; i < 64; i++) {
+    const a = (i / 64) * Math.PI * 2;
+    poly.push(new THREE.Vector3(r * Math.cos(a), pos, r * Math.sin(a)));
+  }
+  const center = new THREE.Vector3(0, pos, 0);
+  return { poly, normal, u, v, center, point };
+}
+
 // ── Analytical section for tilt ≈ 90° (축을 포함) ─────────────────────
 // When tilt → 90° the cutting plane normal → (1,0,0), making it nearly
 // parallel to the cylinder/cone side faces, so mesh intersection misses them.
@@ -439,10 +482,15 @@ export default function RotationExplorer() {
     // Clear section
     disposeGroup(secGrp);
 
-    // tilt ≥ 88° → plane nearly parallel to side faces → use analytical section
-    const sec = tilt >= 88
-      ? getAxisSection(solidKey, pos)
-      : getSection(trisRef.current, tilt, pos);
+    // Degenerate angles: use analytical sections instead of mesh slicing
+    let sec: SectionResult | null;
+    if (tilt < 12) {
+      sec = getPerpendicularSection(solidKey, tilt, pos);
+    } else if (tilt > 78) {
+      sec = getAxisSection(solidKey, pos);
+    } else {
+      sec = getSection(trisRef.current, tilt, pos);
+    }
     setShapeLabel(shapeName(sec, solidKey, tilt));
     setSubLabel(
       tilt < 12 ? '축에 수직' : tilt > 78 ? '축을 포함' : `비스듬히 · ${Math.round(tilt)}°`,
@@ -533,17 +581,16 @@ export default function RotationExplorer() {
         </div>
       </div>
 
-      {/* Viewport + right panel */}
-      <div className="flex gap-4 items-stretch">
+      {/* Viewport + right panel: stacked on mobile, side by side on desktop */}
+      <div className="flex flex-col md:flex-row gap-4 md:items-stretch">
         <div
           ref={mountRef}
-          className="flex-1 min-w-0 bg-white rounded-2xl border border-navy/10 overflow-hidden cursor-grab active:cursor-grabbing"
-          style={{ height: 420 }}
+          className="w-full md:flex-1 md:min-w-0 aspect-square md:aspect-auto md:h-[420px] bg-white rounded-2xl border border-navy/10 overflow-hidden cursor-grab active:cursor-grabbing"
         />
 
         {/* Right panel: shape name + 2D preview */}
-        <div className="w-44 flex-shrink-0 flex flex-col gap-3">
-          <div className="bg-white rounded-2xl border border-navy/10 p-4">
+        <div className="w-full md:w-44 md:flex-shrink-0 flex flex-row md:flex-col gap-3">
+          <div className="bg-white rounded-2xl border border-navy/10 p-4 flex-1 md:flex-none">
             <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1">단면 모양</p>
             <p className="text-xl font-bold text-navy leading-snug">{shapeLabel}</p>
             <p className="text-xs font-mono text-orange mt-1">{subLabel}</p>

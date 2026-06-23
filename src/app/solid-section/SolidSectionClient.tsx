@@ -10,7 +10,7 @@ type Tab = 'polyhedron' | 'rotation';
 
 function LoadingViewer() {
   return (
-    <div className="w-full bg-white rounded-2xl border border-navy/10 flex items-center justify-center" style={{ height: 400 }}>
+    <div className="w-full aspect-square md:aspect-auto md:h-[400px] bg-white rounded-2xl border border-navy/10 flex items-center justify-center">
       <div className="text-muted text-sm">3D 뷰어 로딩 중…</div>
     </div>
   );
@@ -23,8 +23,8 @@ export default function SolidSectionClient() {
     <div className="flex flex-col min-h-screen bg-paper">
       {/* Header */}
       <header className="border-b border-navy/10 bg-navy">
-        <div className="max-w-5xl mx-auto px-6 py-5 flex items-center gap-3">
-          <Link href="/" className="text-gold font-bold text-xl tracking-tight hover:text-gold/80 transition-colors">
+        <div className="max-w-5xl mx-auto px-4 md:px-6 py-4 md:py-5 flex items-center gap-3">
+          <Link href="/" className="text-orange font-bold text-xl tracking-tight hover:text-orange/80 transition-colors">
             트이다
           </Link>
           <span className="text-white/40 text-xl">|</span>
@@ -32,7 +32,7 @@ export default function SolidSectionClient() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-5xl mx-auto px-6 py-10 w-full">
+      <main className="flex-1 max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-10 w-full">
         {/* Title */}
         <div className="mb-8">
           <Link
@@ -48,10 +48,10 @@ export default function SolidSectionClient() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-white border border-navy/10 rounded-xl p-1 mb-8 w-fit">
+        <div className="flex gap-1 bg-white border border-navy/10 rounded-xl p-1 mb-6 md:mb-8 w-full md:w-fit">
           <button
             onClick={() => setTab('polyhedron')}
-            className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex-1 md:flex-none px-2 md:px-5 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors ${
               tab === 'polyhedron'
                 ? 'bg-navy text-white shadow-sm'
                 : 'text-muted hover:text-navy'
@@ -61,7 +61,7 @@ export default function SolidSectionClient() {
           </button>
           <button
             onClick={() => setTab('rotation')}
-            className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex-1 md:flex-none px-2 md:px-5 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors ${
               tab === 'rotation'
                 ? 'bg-navy text-white shadow-sm'
                 : 'text-muted hover:text-navy'

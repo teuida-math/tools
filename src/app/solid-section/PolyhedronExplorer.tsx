@@ -265,6 +265,8 @@ export default function PolyhedronExplorer() {
     const el = mountRef.current;
     if (!el) return;
 
+    const isMobile = window.innerWidth < 768;
+
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(el.clientWidth, el.clientHeight);
@@ -313,7 +315,8 @@ export default function PolyhedronExplorer() {
     const spheres: THREE.Mesh[] = [];
     ALL_PTS.forEach((pt, i) => {
       const isVertex = i < 8;
-      const geo = new THREE.SphereGeometry(isVertex ? 0.1 : 0.075, 16, 16);
+      const r = isMobile ? (isVertex ? 0.22 : 0.16) : (isVertex ? 0.1 : 0.075);
+      const geo = new THREE.SphereGeometry(r, 16, 16);
       const mat = new THREE.MeshPhongMaterial({
         color: isVertex ? 0xf2b544 : 0x8b97ac,
         emissive: 0x000000,
@@ -355,7 +358,7 @@ export default function PolyhedronExplorer() {
     };
     const onPointerMove = (e: PointerEvent) => {
       const dx = e.clientX - downAt.x, dy = e.clientY - downAt.y;
-      if (dx * dx + dy * dy > 16) dragged = true;
+      if (dx * dx + dy * dy > (isMobile ? 64 : 16)) dragged = true;
 
       // Cursor hint
       const rect = renderer.domElement.getBoundingClientRect();
@@ -459,16 +462,15 @@ export default function PolyhedronExplorer() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Viewport + 2D preview side by side */}
-      <div className="flex gap-4 items-stretch">
+      {/* Viewport + 2D preview side by side on desktop, stacked on mobile */}
+      <div className="flex flex-col md:flex-row gap-4 md:items-stretch">
         <div
           ref={mountRef}
-          className="flex-1 min-w-0 bg-white rounded-2xl border border-navy/10 overflow-hidden"
-          style={{ height: 420 }}
+          className="w-full md:flex-1 md:min-w-0 aspect-square md:aspect-auto md:h-[420px] bg-white rounded-2xl border border-navy/10 overflow-hidden"
         />
 
         {/* 2D preview panel */}
-        <div className="w-44 flex-shrink-0 bg-white rounded-2xl border border-navy/10 p-4 flex flex-col items-center justify-center gap-2">
+        <div className="w-full md:w-44 md:flex-shrink-0 bg-white rounded-2xl border border-navy/10 p-4 flex flex-col items-center justify-center gap-2">
           <p className="text-xs font-semibold text-navy self-start">단면 미리보기</p>
           {sectionPts.length >= 3 ? (
             <>
@@ -510,7 +512,7 @@ export default function PolyhedronExplorer() {
       </div>
 
       {/* Legend */}
-      <div className="flex gap-5 text-xs text-muted">
+      <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-muted">
         <span className="flex items-center gap-1.5">
           <span className="inline-block w-2.5 h-2.5 rounded-full bg-gold" />
           꼭짓점 (8개)
