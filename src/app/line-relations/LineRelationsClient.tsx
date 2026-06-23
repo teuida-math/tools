@@ -25,7 +25,7 @@ export default function LineRelationsClient() {
             트이다
           </Link>
           <span className="text-white/40 text-xl">|</span>
-          <span className="text-white/80 text-sm font-medium">직선의 위치 관계 탐구기</span>
+          <span className="text-white/80 text-sm font-medium">직선 위치 관계 탐구기</span>
         </div>
       </header>
 
@@ -37,7 +37,7 @@ export default function LineRelationsClient() {
           >
             ← 도구 목록으로
           </Link>
-          <h1 className="text-2xl font-bold text-navy mb-2">직선의 위치 관계 탐구기</h1>
+          <h1 className="text-2xl font-bold text-navy mb-2">직선 위치 관계 탐구기</h1>
           <p className="text-muted text-sm break-keep">
             정육면체의 모서리(직선) 두 개를 선택하면 두 직선의 위치 관계를 자동으로 판별합니다.
           </p>

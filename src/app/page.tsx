@@ -1,9 +1,12 @@
+import type { ComponentType } from "react";
 import Link from "next/link";
-import { Box, Spline, type LucideIcon } from "lucide-react";
+import { Box, X, type LucideIcon } from "lucide-react";
+import RelationMiniIcon from "./line-relations/RelationMiniIcon";
 
 interface Tool {
   href: string;
   icon: LucideIcon;
+  customIcon?: ComponentType<{ className?: string }>;
   title: string;
   desc: string;
   tags: string[];
@@ -19,8 +22,9 @@ const tools: Tool[] = [
   },
   {
     href: "/line-relations",
-    icon: Spline,
-    title: "직선의 위치 관계 탐구기",
+    icon: X,
+    customIcon: RelationMiniIcon,
+    title: "직선 위치 관계 탐구기",
     desc: "공간에서 두 직선의 위치 관계를 눈으로 확인하는 인터랙티브 탐구기",
     tags: ["3D", "직선", "위치 관계", "공간도형"],
   },
@@ -66,7 +70,10 @@ export default function Home() {
               href={tool.href}
               className="group block bg-white rounded-2xl border border-navy/8 p-6 shadow-sm hover:shadow-md hover:border-orange/40 transition-all duration-200"
             >
-              <tool.icon className="w-10 h-10 mb-4 text-navy group-hover:text-orange transition-colors" />
+              {tool.customIcon
+                ? <tool.customIcon className="w-10 h-10 mb-4" />
+                : <tool.icon className="w-10 h-10 mb-4 text-navy group-hover:text-orange transition-colors" />
+              }
               <h3 className="text-navy font-bold text-lg mb-2 group-hover:text-orange transition-colors">
                 {tool.title}
               </h3>
