@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+:root {
+  --navy: #1B2A4A;
+  --orange: #E8650A;
+  --gold: #F2B544;
+  --paper: #f4f2ee;
+  --muted: #8B97AC;
+}
+
+@theme inline {
+  --color-navy: var(--navy);
+  --color-orange: var(--orange);
+  --color-gold: var(--gold);
+  --color-paper: var(--paper);
+  --color-muted: var(--muted);
+  --font-sans: var(--font-ibm-plex-sans-kr);
+}
+
+body {
+  background: var(--paper);
+  color: var(--navy);
+  font-family: var(--font-ibm-plex-sans-kr), "Apple SD Gothic Neo", sans-serif;
+}
