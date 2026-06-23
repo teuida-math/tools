@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Box, type LucideIcon } from "lucide-react";
+import { Box, Spline, type LucideIcon } from "lucide-react";
 
 interface Tool {
   href: string;
@@ -16,6 +16,13 @@ const tools: Tool[] = [
     title: "입체도형 단면 탐구기",
     desc: "다면체와 회전체를 잘라 단면을 눈으로 확인하는 인터랙티브 탐구기",
     tags: ["3D", "단면", "다면체", "회전체"],
+  },
+  {
+    href: "/line-relations",
+    icon: Spline,
+    title: "직선의 위치 관계 탐구기",
+    desc: "공간에서 두 직선의 위치 관계를 눈으로 확인하는 인터랙티브 탐구기",
+    tags: ["3D", "직선", "위치 관계", "공간도형"],
   },
 ];
 
