@@ -4,18 +4,26 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
-/* ─── Cube geometry (half-size = 1) ─────────────────────────────────── */
+/* ─── Shape registry ─────────────────────────────────────────────────── */
 
-const S = 1;
+type ShapeType = 'cube' | 'tetrahedron' | 'octahedron';
+
+// 새 도형 추가 시 여기에 항목 하나만 추가
+const POLY_SHAPES: { key: ShapeType; label: string }[] = [
+  { key: 'cube',        label: '정육면체' },
+  { key: 'tetrahedron', label: '정사면체' },
+  { key: 'octahedron',  label: '정팔면체' },
+];
+
+/* ─── Cube geometry (half-size = 1) ─────────────────────────────────── */
 
 const CUBE_VERTS: THREE.Vector3[] = (() => {
   const pts: THREE.Vector3[] = [];
-  for (const x of [-S, S]) for (const y of [-S, S]) for (const z of [-S, S])
+  for (const x of [-1, 1]) for (const y of [-1, 1]) for (const z of [-1, 1])
     pts.push(new THREE.Vector3(x, y, z));
   return pts;
 })();
 
-// 12 edges: pairs of vertices at distance 2
 const CUBE_EDGES: [number, number][] = (() => {
   const edges: [number, number][] = [];
   for (let i = 0; i < CUBE_VERTS.length; i++)
@@ -25,13 +33,75 @@ const CUBE_EDGES: [number, number][] = (() => {
   return edges;
 })();
 
-// 12 edge midpoints
-const EDGE_MIDS: THREE.Vector3[] = CUBE_EDGES.map(([i, j]) =>
+const CUBE_MIDS: THREE.Vector3[] = CUBE_EDGES.map(([i, j]) =>
   CUBE_VERTS[i].clone().add(CUBE_VERTS[j]).multiplyScalar(0.5)
 );
 
 // indices 0–7 = vertices, 8–19 = edge midpoints
-const ALL_PTS: THREE.Vector3[] = [...CUBE_VERTS, ...EDGE_MIDS];
+const CUBE_ALL: THREE.Vector3[] = [...CUBE_VERTS, ...CUBE_MIDS];
+
+/* ─── Tetrahedron geometry ───────────────────────────────────────────── */
+// Regular tetrahedron inscribed in unit cube — edge length 2√2, same scale as cube
+
+const TETRA_VERTS: THREE.Vector3[] = [
+  new THREE.Vector3( 1,  1,  1),
+  new THREE.Vector3( 1, -1, -1),
+  new THREE.Vector3(-1,  1, -1),
+  new THREE.Vector3(-1, -1,  1),
+];
+
+const TETRA_EDGES: [number, number][] = [
+  [0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3],
+];
+
+const TETRA_MIDS: THREE.Vector3[] = TETRA_EDGES.map(([i, j]) =>
+  TETRA_VERTS[i].clone().add(TETRA_VERTS[j]).multiplyScalar(0.5)
+);
+
+// indices 0–3 = vertices, 4–9 = edge midpoints
+// 3가지 정사각형 단면: 평행한 두 쌍 모서리 중점 (x=0: 5,6,7,8) (y=0: 4,6,7,9) (z=0: 4,5,8,9)
+const TETRA_ALL: THREE.Vector3[] = [...TETRA_VERTS, ...TETRA_MIDS];
+
+/* ─── Octahedron geometry ────────────────────────────────────────────── */
+// Regular octahedron — vertices on axes at ±1, edge length = √2
+
+const OCTA_VERTS: THREE.Vector3[] = [
+  new THREE.Vector3( 1,  0,  0),  // V0
+  new THREE.Vector3(-1,  0,  0),  // V1
+  new THREE.Vector3( 0,  1,  0),  // V2
+  new THREE.Vector3( 0, -1,  0),  // V3
+  new THREE.Vector3( 0,  0,  1),  // V4
+  new THREE.Vector3( 0,  0, -1),  // V5
+];
+
+// 12 edges: all pairs except the 3 antipodal pairs (V0-V1, V2-V3, V4-V5)
+const OCTA_EDGES: [number, number][] = [
+  [0, 2], [0, 3], [0, 4], [0, 5],
+  [1, 2], [1, 3], [1, 4], [1, 5],
+  [2, 4], [2, 5],
+  [3, 4], [3, 5],
+];
+
+const OCTA_MIDS: THREE.Vector3[] = OCTA_EDGES.map(([i, j]) =>
+  OCTA_VERTS[i].clone().add(OCTA_VERTS[j]).multiplyScalar(0.5)
+);
+
+// indices 0–5 = vertices, 6–17 = edge midpoints
+// 정사각형 단면: 적도 꼭짓점 4개(V0,V1,V2,V3)가 z=0 평면 위 → 선택 3개로 지정
+// 정육각형 단면: x+y+z=0 평면 → 해당 평면을 지나는 중점 3개로 지정
+const OCTA_ALL: THREE.Vector3[] = [...OCTA_VERTS, ...OCTA_MIDS];
+
+/* ─── Shape data accessor ────────────────────────────────────────────── */
+
+function getShapeData(shape: ShapeType) {
+  if (shape === 'cube') {
+    return { verts: CUBE_VERTS, edges: CUBE_EDGES, allPts: CUBE_ALL, numVerts: 8, numMids: 12 };
+  }
+  if (shape === 'tetrahedron') {
+    return { verts: TETRA_VERTS, edges: TETRA_EDGES, allPts: TETRA_ALL, numVerts: 4, numMids: 6 };
+  }
+  return { verts: OCTA_VERTS, edges: OCTA_EDGES, allPts: OCTA_ALL, numVerts: 6, numMids: 12 };
+}
 
 /* ─── Math helpers ───────────────────────────────────────────────────── */
 
@@ -78,12 +148,17 @@ function planeLocalFrame(normal: THREE.Vector3): [THREE.Vector3, THREE.Vector3] 
   return [u, v];
 }
 
-function computeCubeSection(normal: THREE.Vector3, d: number): THREE.Vector3[] {
+function computeSection(
+  verts: THREE.Vector3[],
+  edges: [number, number][],
+  normal: THREE.Vector3,
+  d: number,
+): THREE.Vector3[] {
   const n = normal.clone().normalize();
   const pts: THREE.Vector3[] = [];
 
-  for (const [i, j] of CUBE_EDGES) {
-    const a = CUBE_VERTS[i], b = CUBE_VERTS[j];
+  for (const [i, j] of edges) {
+    const a = verts[i], b = verts[j];
     const da = n.dot(a) - d, db = n.dot(b) - d;
     const ea = Math.abs(da) < 1e-6, eb = Math.abs(db) < 1e-6;
     if (ea) pts.push(a.clone());
@@ -110,31 +185,35 @@ function computeCubeSection(normal: THREE.Vector3, d: number): THREE.Vector3[] {
 function classifyShape(pts: THREE.Vector3[]): string {
   const n = pts.length;
   if (n < 3) return '';
+  const EPS = 0.05;
 
   if (n === 3) {
-    const s = pts.map((p, i) => p.distanceTo(pts[(i + 1) % 3]));
-    if (Math.max(...s) - Math.min(...s) < 0.06) return '정삼각형';
-    return '삼각형';
+    const sides = [0, 1, 2]
+      .map(i => pts[i].distanceTo(pts[(i + 1) % 3]))
+      .sort((a, b) => a - b);
+    if (sides[2] - sides[0] < EPS) return '정삼각형';
+    if (sides[2] - sides[1] < EPS || sides[1] - sides[0] < EPS) return '이등변삼각형';
+    return '일반삼각형';
   }
 
   if (n === 4) {
-    const s = pts.map((p, i) => p.distanceTo(pts[(i + 1) % 4]));
-    const diag = [pts[0].distanceTo(pts[2]), pts[1].distanceTo(pts[3])];
-    const eqS = Math.max(...s) - Math.min(...s) < 0.06;
-    const eqD = Math.abs(diag[0] - diag[1]) < 0.06;
-    const oppEq = Math.abs(s[0] - s[2]) < 0.06 && Math.abs(s[1] - s[3]) < 0.06;
+    const sides = [0, 1, 2, 3].map(i => pts[i].distanceTo(pts[(i + 1) % 4]));
+    const diags = [pts[0].distanceTo(pts[2]), pts[1].distanceTo(pts[3])];
+    const eqS = Math.max(...sides) - Math.min(...sides) < EPS;
+    const eqD = Math.abs(diags[0] - diags[1]) < EPS;
+    const oppEq = Math.abs(sides[0] - sides[2]) < EPS && Math.abs(sides[1] - sides[3]) < EPS;
     if (eqS && eqD) return '정사각형';
     if (eqD && oppEq) return '직사각형';
     if (eqS) return '마름모';
     if (oppEq) return '평행사변형';
-    return '사다리꼴';
+    return '일반사각형';
   }
 
   if (n === 5) return '오각형';
 
   if (n === 6) {
-    const s = pts.map((p, i) => p.distanceTo(pts[(i + 1) % 6]));
-    if (Math.max(...s) - Math.min(...s) < 0.06) return '정육각형';
+    const sides = [0, 1, 2, 3, 4, 5].map(i => pts[i].distanceTo(pts[(i + 1) % 6]));
+    if (Math.max(...sides) - Math.min(...sides) < EPS) return '정육각형';
     return '육각형';
   }
 
@@ -146,7 +225,6 @@ function classifyShape(pts: THREE.Vector3[]): string {
 function buildSectionGroup(pts: THREE.Vector3[]): THREE.Group {
   const group = new THREE.Group();
 
-  // Fan-triangulate (always valid for convex polygons)
   const positions: number[] = [];
   for (let i = 1; i < pts.length - 1; i++) {
     positions.push(...pts[0].toArray(), ...pts[i].toArray(), ...pts[i + 1].toArray());
@@ -155,7 +233,6 @@ function buildSectionGroup(pts: THREE.Vector3[]): THREE.Group {
   fillGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   fillGeo.computeVertexNormals();
 
-  // polygonOffset pushes depth toward camera to beat z-fighting
   const fillMat = new THREE.MeshBasicMaterial({
     color: 0xe8650a,
     side: THREE.DoubleSide,
@@ -170,7 +247,6 @@ function buildSectionGroup(pts: THREE.Vector3[]): THREE.Group {
   fill.renderOrder = 2;
   group.add(fill);
 
-  // Outline
   const loop = new THREE.LineLoop(
     new THREE.BufferGeometry().setFromPoints(pts),
     new THREE.LineBasicMaterial({ color: 0xe8650a, linewidth: 2 }),
@@ -190,7 +266,6 @@ function SectionSVG({ pts }: { pts: THREE.Vector3[] }) {
     .reduce((acc, p) => acc.add(p.clone()), new THREE.Vector3())
     .divideScalar(pts.length);
 
-  // Reconstruct normal from polygon edges
   let normal = new THREE.Vector3();
   const ab = pts[1].clone().sub(pts[0]);
   for (let i = 2; i < pts.length; i++) {
@@ -243,12 +318,12 @@ function SectionSVG({ pts }: { pts: THREE.Vector3[] }) {
 
 export default function PolyhedronExplorer() {
   const mountRef = useRef<HTMLDivElement>(null);
+  const [shape, setShape] = useState<ShapeType>('cube');
   const [selected, setSelected] = useState<number[]>([]);
   const [sectionPts, setSectionPts] = useState<THREE.Vector3[]>([]);
   const [shapeName, setShapeName] = useState('');
   const [collinear, setCollinear] = useState(false);
 
-  // Three.js objects (imperative)
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -256,16 +331,26 @@ export default function PolyhedronExplorer() {
   const spheresRef = useRef<THREE.Mesh[]>([]);
   const sectionGrpRef = useRef<THREE.Group | null>(null);
   const frameIdRef = useRef(0);
+  // planeRef is read by the click handler (closure) to gate off-plane clicks.
+  const planeRef = useRef<{ normal: THREE.Vector3; d: number } | null>(null);
 
-  // Mirror selected into a ref so event handlers see current value
   const selectedRef = useRef<number[]>([]);
+  const shapeRef = useRef<ShapeType>('cube');
+  const [planeLocked, setPlaneLocked] = useState(false);
 
-  /* ── Scene setup (runs once) ── */
+  /* ── Sync shapeRef and reset selection when shape changes ── */
+  useEffect(() => {
+    shapeRef.current = shape;
+    setSelected([]);
+  }, [shape]);
+
+  /* ── Scene setup (re-runs when shape changes) ── */
   useEffect(() => {
     const el = mountRef.current;
     if (!el) return;
 
     const isMobile = window.innerWidth < 768;
+    const { allPts, numVerts } = getShapeData(shape);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(window.devicePixelRatio);
@@ -290,37 +375,99 @@ export default function PolyhedronExplorer() {
     dir.position.set(4, 6, 4);
     scene.add(dir);
 
-    // Grid
     const grid = new THREE.GridHelper(5, 10, 0x8b97ac, 0x8b97ac);
     (grid.material as THREE.Material).opacity = 0.15;
     (grid.material as THREE.Material).transparent = true;
     scene.add(grid);
 
-    // Cube: transparent faces + edges
-    const boxGeo = new THREE.BoxGeometry(2, 2, 2);
-    scene.add(
-      new THREE.Mesh(
-        boxGeo,
-        new THREE.MeshPhongMaterial({ color: 0x1b2a4a, transparent: true, opacity: 0.07 }),
-      ),
-    );
-    scene.add(
-      new THREE.LineSegments(
-        new THREE.EdgesGeometry(boxGeo),
-        new THREE.LineBasicMaterial({ color: 0x1b2a4a }),
-      ),
-    );
+    // Polyhedron wireframe + transparent faces
+    if (shape === 'cube') {
+      const boxGeo = new THREE.BoxGeometry(2, 2, 2);
+      scene.add(
+        new THREE.Mesh(
+          boxGeo,
+          new THREE.MeshPhongMaterial({ color: 0x1b2a4a, transparent: true, opacity: 0.07 }),
+        ),
+      );
+      scene.add(
+        new THREE.LineSegments(
+          new THREE.EdgesGeometry(boxGeo),
+          new THREE.LineBasicMaterial({ color: 0x1b2a4a }),
+        ),
+      );
+    } else if (shape === 'tetrahedron') {
+      // Tetrahedron: 4 triangular faces
+      const faceIndices = [0, 1, 2, 0, 2, 3, 0, 3, 1, 1, 3, 2];
+      const facePositions = faceIndices.flatMap(i => TETRA_VERTS[i].toArray());
+      const faceGeo = new THREE.BufferGeometry();
+      faceGeo.setAttribute('position', new THREE.Float32BufferAttribute(facePositions, 3));
+      faceGeo.computeVertexNormals();
+      scene.add(
+        new THREE.Mesh(
+          faceGeo,
+          new THREE.MeshPhongMaterial({
+            color: 0x1b2a4a,
+            transparent: true,
+            opacity: 0.07,
+            side: THREE.DoubleSide,
+          }),
+        ),
+      );
+
+      const edgePositions = TETRA_EDGES.flatMap(([i, j]) => [
+        ...TETRA_VERTS[i].toArray(),
+        ...TETRA_VERTS[j].toArray(),
+      ]);
+      const edgeGeo = new THREE.BufferGeometry();
+      edgeGeo.setAttribute('position', new THREE.Float32BufferAttribute(edgePositions, 3));
+      scene.add(
+        new THREE.LineSegments(edgeGeo, new THREE.LineBasicMaterial({ color: 0x1b2a4a })),
+      );
+    } else {
+      // Octahedron: 8 triangular faces (upper + lower pyramids)
+      const faceIndices = [
+        0, 2, 4,  0, 4, 3,  0, 3, 5,  0, 5, 2,  // upper (V0 side)
+        1, 4, 2,  1, 3, 4,  1, 5, 3,  1, 2, 5,  // lower (V1 side)
+      ];
+      const facePositions = faceIndices.flatMap(i => OCTA_VERTS[i].toArray());
+      const faceGeo = new THREE.BufferGeometry();
+      faceGeo.setAttribute('position', new THREE.Float32BufferAttribute(facePositions, 3));
+      faceGeo.computeVertexNormals();
+      scene.add(
+        new THREE.Mesh(
+          faceGeo,
+          new THREE.MeshPhongMaterial({
+            color: 0x1b2a4a,
+            transparent: true,
+            opacity: 0.07,
+            side: THREE.DoubleSide,
+          }),
+        ),
+      );
+
+      const edgePositions = OCTA_EDGES.flatMap(([i, j]) => [
+        ...OCTA_VERTS[i].toArray(),
+        ...OCTA_VERTS[j].toArray(),
+      ]);
+      const edgeGeo = new THREE.BufferGeometry();
+      edgeGeo.setAttribute('position', new THREE.Float32BufferAttribute(edgePositions, 3));
+      scene.add(
+        new THREE.LineSegments(edgeGeo, new THREE.LineBasicMaterial({ color: 0x1b2a4a })),
+      );
+    }
 
     // Selectable point spheres
     const spheres: THREE.Mesh[] = [];
-    ALL_PTS.forEach((pt, i) => {
-      const isVertex = i < 8;
+    allPts.forEach((pt, i) => {
+      const isVertex = i < numVerts;
       const r = isMobile ? (isVertex ? 0.22 : 0.16) : (isVertex ? 0.1 : 0.075);
       const geo = new THREE.SphereGeometry(r, 16, 16);
       const mat = new THREE.MeshPhongMaterial({
         color: isVertex ? 0xf2b544 : 0x8b97ac,
         emissive: 0x000000,
         shininess: 80,
+        transparent: true,
+        opacity: 1,
       });
       const mesh = new THREE.Mesh(geo, mat);
       mesh.position.copy(pt);
@@ -360,13 +507,19 @@ export default function PolyhedronExplorer() {
       const dx = e.clientX - downAt.x, dy = e.clientY - downAt.y;
       if (dx * dx + dy * dy > (isMobile ? 64 : 16)) dragged = true;
 
-      // Cursor hint
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(mouse, camera);
       const hits = raycaster.intersectObjects(spheres);
-      renderer.domElement.style.cursor = hits.length > 0 ? 'pointer' : 'default';
+      if (hits.length > 0) {
+        const hitIdx = hits[0].object.userData.idx as number;
+        const locked = planeRef.current;
+        const offPlane = locked && Math.abs(locked.normal.dot(allPts[hitIdx]) - locked.d) > 1e-4;
+        renderer.domElement.style.cursor = offPlane ? 'not-allowed' : 'pointer';
+      } else {
+        renderer.domElement.style.cursor = 'default';
+      }
     };
     const onPointerUp = (e: PointerEvent) => {
       if (dragged) return;
@@ -377,10 +530,11 @@ export default function PolyhedronExplorer() {
       const hits = raycaster.intersectObjects(spheres);
       if (hits.length === 0) return;
       const idx = hits[0].object.userData.idx as number;
+      // Reject clicks on points outside the locked plane
+      const locked = planeRef.current;
+      if (locked && Math.abs(locked.normal.dot(allPts[idx]) - locked.d) > 1e-4) return;
       setSelected(prev => {
-        const next = prev.includes(idx)
-          ? prev.filter(i => i !== idx)
-          : [...prev, idx];
+        const next = prev.includes(idx) ? prev.filter(i => i !== idx) : [...prev, idx];
         selectedRef.current = next;
         return next;
       });
@@ -400,7 +554,7 @@ export default function PolyhedronExplorer() {
       renderer.dispose();
       el.removeChild(renderer.domElement);
     };
-  }, []);
+  }, [shape]);
 
   /* ── Update scene when selection changes ── */
   useEffect(() => {
@@ -408,18 +562,32 @@ export default function PolyhedronExplorer() {
     const scene = sceneRef.current;
     if (!scene) return;
 
-    // Update sphere appearance
+    const { verts, edges, allPts, numVerts } = getShapeData(shapeRef.current);
+
+    // Compute plane first — needed for sphere opacity and planeRef
+    const pts = selected.map(i => allPts[i]);
+    const plane = selected.length >= 3 ? fitPlane(pts) : null;
+
+    // Sync planeRef so the click handler always reads the latest plane
+    planeRef.current = plane;
+    setPlaneLocked(plane !== null);
+
+    // Update sphere appearance (color + opacity)
     spheresRef.current.forEach((mesh, i) => {
       const mat = mesh.material as THREE.MeshPhongMaterial;
-      const isVertex = i < 8;
+      const isVertex = i < numVerts;
       if (selected.includes(i)) {
         mat.color.set(0xe8650a);
         mat.emissive.set(0x3a1500);
         mesh.scale.setScalar(1.45);
+        mat.opacity = 1;
       } else {
         mat.color.set(isVertex ? 0xf2b544 : 0x8b97ac);
         mat.emissive.set(0x000000);
         mesh.scale.setScalar(1.0);
+        mat.opacity = plane
+          ? (Math.abs(plane.normal.dot(allPts[i]) - plane.d) < 1e-4 ? 1 : 0.2)
+          : 1;
       }
     });
 
@@ -436,9 +604,6 @@ export default function PolyhedronExplorer() {
       return;
     }
 
-    const pts = selected.map(i => ALL_PTS[i]);
-    const plane = fitPlane(pts);
-
     if (!plane) {
       setCollinear(true);
       setSectionPts([]);
@@ -447,7 +612,7 @@ export default function PolyhedronExplorer() {
     }
     setCollinear(false);
 
-    const section = computeCubeSection(plane.normal, plane.d);
+    const section = computeSection(verts, edges, plane.normal, plane.d);
     setSectionPts(section);
     setShapeName(classifyShape(section));
 
@@ -460,8 +625,30 @@ export default function PolyhedronExplorer() {
 
   const handleReset = () => setSelected([]);
 
+  const { numVerts, numMids } = getShapeData(shape);
+
   return (
     <div className="flex flex-col gap-4">
+      {/* Shape selector — 회전체 탭과 동일한 패턴 */}
+      <div>
+        <p className="text-xs font-semibold text-muted uppercase tracking-widest mb-2">다면체</p>
+        <div className="flex gap-2 flex-wrap">
+          {POLY_SHAPES.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setShape(key)}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                shape === key
+                  ? 'bg-navy text-white border-navy'
+                  : 'bg-white text-navy border-navy/20 hover:border-navy/50'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Viewport + 2D preview side by side on desktop, stacked on mobile */}
       <div className="flex flex-col md:flex-row gap-4 md:items-stretch">
         <div
@@ -509,17 +696,22 @@ export default function PolyhedronExplorer() {
             )}
           </span>
         )}
+        {planeLocked && (
+          <span className="text-xs text-navy/60">
+            단면이 정해졌어요 — 같은 평면 위의 점만 고를 수 있어요
+          </span>
+        )}
       </div>
 
       {/* Legend */}
       <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-muted">
         <span className="flex items-center gap-1.5">
           <span className="inline-block w-2.5 h-2.5 rounded-full bg-gold" />
-          꼭짓점 (8개)
+          꼭짓점 ({numVerts}개)
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block w-2.5 h-2.5 rounded-full bg-muted" />
-          모서리 중점 (12개)
+          모서리 중점 ({numMids}개)
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block w-2.5 h-2.5 rounded-full bg-orange" />
@@ -528,8 +720,11 @@ export default function PolyhedronExplorer() {
       </div>
 
       <p className="text-xs text-muted leading-relaxed break-keep">
-        점을 클릭해 선택하세요. 3개 이상 선택하면 그 점들을 지나는 평면으로 단면을 자릅니다.
-        드래그로 도형을 회전하고, 스크롤로 확대·축소할 수 있습니다.
+        {shape === 'tetrahedron'
+          ? '점을 클릭해 선택하세요. 평행한 두 쌍 모서리의 중점 4개를 선택하면 정사각형 단면이 나타납니다. 드래그로 회전, 스크롤로 확대·축소.'
+          : shape === 'octahedron'
+          ? '점을 클릭해 선택하세요. 적도면 꼭짓점 3개를 선택하면 정사각형, 대각 방향 중점 3개를 선택하면 정육각형 단면이 나타납니다. 드래그로 회전, 스크롤로 확대·축소.'
+          : '점을 클릭해 선택하세요. 3개 이상 선택하면 그 점들을 지나는 평면으로 단면을 자릅니다. 드래그로 도형을 회전하고, 스크롤로 확대·축소할 수 있습니다.'}
       </p>
     </div>
   );
