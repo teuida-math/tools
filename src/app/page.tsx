@@ -1,6 +1,6 @@
 import type { ComponentType } from "react";
 import Link from "next/link";
-import { Box, X, type LucideIcon } from "lucide-react";
+import { Box, X, Orbit, type LucideIcon } from "lucide-react";
 import RelationMiniIcon from "./line-relations/RelationMiniIcon";
 
 interface Tool {
@@ -27,6 +27,13 @@ const tools: Tool[] = [
     title: "직선 위치 관계 탐구기",
     desc: "공간에서 두 직선의 위치 관계를 눈으로 확인하는 인터랙티브 탐구기",
     tags: ["3D", "직선", "위치 관계", "공간도형"],
+  },
+  {
+    href: "/revolution-maker",
+    icon: Orbit,
+    title: "회전체 생성기",
+    desc: "평면도형을 회전축에 붙이고 슬라이더로 각도를 조절해 3D 회전체를 실시간으로 만드는 탐구 도구",
+    tags: ["3D", "회전체", "원기둥", "원뿔", "구"],
   },
 ];
 
