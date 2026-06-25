@@ -261,6 +261,8 @@ export default function RevolutionMakerExplorer() {
   const meshInteriorRef = useRef<THREE.Mesh | null>(null);
   const materialRef = useRef<THREE.MeshPhongMaterial | null>(null);
   const materialInteriorRef = useRef<THREE.MeshPhongMaterial | null>(null);
+  const capMeshesRef = useRef<THREE.Mesh[]>([]);
+  const capMaterialRef = useRef<THREE.MeshPhongMaterial | null>(null);
   const solidEdgeRef = useRef<THREE.LineSegments | null>(null);
   const hiddenEdgeRef = useRef<THREE.LineSegments | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -366,6 +368,21 @@ export default function RevolutionMakerExplorer() {
     );
     axisLine.computeLineDistances();
     scene.add(axisLine);
+
+    // Cap material (DoubleSide) — 위아래 원형 캡을 안팎 모두에서 표시
+    const materialCap = new THREE.MeshPhongMaterial({
+      color: 0xf4f2ee,
+      emissive: 0xf4f2ee,
+      emissiveIntensity: 0.25,
+      shininess: 20,
+      transparent: true,
+      opacity: 0.55,
+      side: THREE.DoubleSide,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    });
+    capMaterialRef.current = materialCap;
 
     // Interior mesh (BackSide) — 내부 벽면·캡을 안쪽에서 렌더링
     const materialInterior = new THREE.MeshPhongMaterial({
@@ -528,6 +545,51 @@ export default function RevolutionMakerExplorer() {
     scene.add(hiddenEdge);
     hiddenEdgeRef.current = hiddenEdge;
 
+    // Remove old cap meshes
+    const oldCaps = capMeshesRef.current;
+    oldCaps.forEach(m => { scene.remove(m); m.geometry.dispose(); });
+    capMeshesRef.current = [];
+
+    // Add DoubleSide circular caps for full revolution only
+    const capMat = capMaterialRef.current;
+    if (capMat && angle >= 360) {
+      const capDefs: { y: number; innerR: number; outerR: number }[] = [];
+
+      // Horizontal profile segments → disc or ring caps
+      for (let i = 0; i < points.length - 1; i++) {
+        const p1 = points[i], p2 = points[i + 1];
+        if (Math.abs(p1.y - p2.y) < 0.001) {
+          const innerR = Math.min(p1.x, p2.x);
+          const outerR = Math.max(p1.x, p2.x);
+          if (outerR > 0.001) capDefs.push({ y: p1.y, innerR, outerR });
+        }
+      }
+
+      // Terminal open rings (first/last profile point not on axis and not part of horizontal segment)
+      const p0 = points[0], p1 = points[1];
+      const pN = points[points.length - 1], pNm1 = points[points.length - 2];
+      if (p0.x > 0.005 && Math.abs(p0.y - p1.y) > 0.001) {
+        capDefs.push({ y: p0.y, innerR: 0, outerR: p0.x });
+      }
+      if (pN.x > 0.005 && Math.abs(pN.y - pNm1.y) > 0.001) {
+        capDefs.push({ y: pN.y, innerR: 0, outerR: pN.x });
+      }
+
+      const wfNow = materialRef.current?.wireframe ?? false;
+      capDefs.forEach(({ y, innerR, outerR }) => {
+        const capGeo = innerR < 0.005
+          ? new THREE.CircleGeometry(outerR, 64)
+          : new THREE.RingGeometry(innerR, outerR, 64);
+        const capMesh = new THREE.Mesh(capGeo, capMat);
+        capMesh.rotation.x = -Math.PI / 2;
+        capMesh.position.y = y;
+        capMesh.renderOrder = 1;
+        capMesh.visible = !wfNow;
+        scene.add(capMesh);
+        capMeshesRef.current.push(capMesh);
+      });
+    }
+
     const wf = materialRef.current?.wireframe ?? false;
     solidEdge.visible = !wf;
     hiddenEdge.visible = !wf;
@@ -542,6 +604,7 @@ export default function RevolutionMakerExplorer() {
     mat.opacity = wireframe ? 0.9 : 0.55;
     mat.needsUpdate = true;
     matInterior.visible = !wireframe; // 와이어프레임 모드에서 내부 메시 숨김
+    capMeshesRef.current.forEach(m => { m.visible = !wireframe; });
     if (solidEdgeRef.current) solidEdgeRef.current.visible = !wireframe;
     if (hiddenEdgeRef.current) hiddenEdgeRef.current.visible = !wireframe;
   }, [wireframe]);
