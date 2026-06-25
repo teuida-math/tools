@@ -391,7 +391,7 @@ export default function RevolutionMakerExplorer() {
       emissiveIntensity: 0.2,
       shininess: 0,
       transparent: true,
-      opacity: 0.65,
+      opacity: 0.5,
       side: THREE.BackSide,
       depthWrite: false, // 깊이 버퍼 미기록 → 외면에 가려지지 않음
     });
@@ -409,7 +409,7 @@ export default function RevolutionMakerExplorer() {
       emissiveIntensity: 0.3,
       shininess: 0,
       transparent: true,
-      opacity: 0.55,
+      opacity: 0.3,
       side: THREE.FrontSide,
     });
     materialRef.current = material;
@@ -608,7 +608,7 @@ export default function RevolutionMakerExplorer() {
     const matInterior = materialInteriorRef.current;
     if (!mat || !matInterior) return;
     mat.wireframe = wireframe;
-    mat.opacity = wireframe ? 0.9 : 0.55;
+    mat.opacity = wireframe ? 0.9 : 0.3;
     mat.needsUpdate = true;
     matInterior.visible = !wireframe; // 와이어프레임 모드에서 내부 메시 숨김
     capMeshesRef.current.forEach(m => { m.visible = !wireframe; });
