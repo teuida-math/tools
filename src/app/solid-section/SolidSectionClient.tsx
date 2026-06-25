@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState, Suspense, lazy } from 'react';
+import SiteHeader from '@/components/SiteHeader';
 
 const PolyhedronExplorer = lazy(() => import('./PolyhedronExplorer'));
 const RotationExplorer = lazy(() => import('./RotationExplorer'));
@@ -21,16 +22,7 @@ export default function SolidSectionClient() {
 
   return (
     <div className="flex flex-col min-h-screen bg-paper">
-      {/* Header */}
-      <header className="border-b border-navy/10 bg-navy">
-        <div className="max-w-5xl mx-auto px-4 md:px-6 py-4 md:py-5 flex items-center gap-3">
-          <Link href="/" className="text-orange font-bold text-xl tracking-tight hover:text-orange/80 transition-colors">
-            트이다
-          </Link>
-          <span className="text-white/40 text-xl">|</span>
-          <span className="text-white/80 text-sm font-medium">입체도형 단면 탐구기</span>
-        </div>
-      </header>
+      <SiteHeader title="입체도형 단면 탐구기" />
 
       <main className="flex-1 max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-10 w-full">
         {/* Title */}
