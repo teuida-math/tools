@@ -6,17 +6,20 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 /* ─── Shape registry ─────────────────────────────────────────────────────── */
 
-type ShapeType = 'cube' | 'rectbox' | 'triprism';
+type ShapeType = 'cube' | 'rectbox' | 'triprism' | 'frustum' | 'stairs' | 'trapprism';
 
 const SHAPE_LIST: { key: ShapeType; label: string }[] = [
-  { key: 'cube',     label: '정육면체' },
-  { key: 'rectbox',  label: '직육면체' },
-  { key: 'triprism', label: '삼각기둥' },
+  { key: 'cube',      label: '정육면체' },
+  { key: 'rectbox',   label: '직육면체' },
+  { key: 'triprism',  label: '삼각기둥' },
+  { key: 'frustum',   label: '사각뿔대' },
+  { key: 'stairs',    label: '계단형' },
+  { key: 'trapprism', label: '사다리꼴기둥' },
 ];
 
 /* ─── Geometry ───────────────────────────────────────────────────────────── */
 
-const VERTEX_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+const VERTEX_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
 
 // Cube — half-size 1, 8 vertices, 12 edges
 const CUBE_VERTS: THREE.Vector3[] = (() => {
@@ -73,12 +76,85 @@ const TRIPRISM_EDGES: [number, number][] = [
   [0, 3], [1, 4], [2, 5], // vertical edges
 ];
 
+// Frustum (사각뿔대) — bottom square + smaller top square, 8 vertices, 12 edges
+const FRUSTUM_VERTS: THREE.Vector3[] = [
+  new THREE.Vector3(-1,   -0.75, -1),    // A
+  new THREE.Vector3( 1,   -0.75, -1),    // B
+  new THREE.Vector3( 1,   -0.75,  1),    // C
+  new THREE.Vector3(-1,   -0.75,  1),    // D
+  new THREE.Vector3(-0.5,  0.75, -0.5),  // E
+  new THREE.Vector3( 0.5,  0.75, -0.5),  // F
+  new THREE.Vector3( 0.5,  0.75,  0.5),  // G
+  new THREE.Vector3(-0.5,  0.75,  0.5),  // H
+];
+
+const FRUSTUM_EDGES: [number, number][] = [
+  [0, 1], [1, 2], [2, 3], [3, 0], // bottom square
+  [4, 5], [5, 6], [6, 7], [7, 4], // top square
+  [0, 4], [1, 5], [2, 6], [3, 7], // lateral
+];
+
+// Stairs (계단형) — L-shape extrusion, 12 vertices, 18 edges
+const STAIRS_VERTS: THREE.Vector3[] = [
+  new THREE.Vector3(-1, -0.75,  0.75), // A
+  new THREE.Vector3( 1, -0.75,  0.75), // B
+  new THREE.Vector3( 1,  0,     0.75), // C
+  new THREE.Vector3( 0,  0,     0.75), // D
+  new THREE.Vector3( 0,  0.75,  0.75), // E
+  new THREE.Vector3(-1,  0.75,  0.75), // F
+  new THREE.Vector3(-1, -0.75, -0.75), // G
+  new THREE.Vector3( 1, -0.75, -0.75), // H
+  new THREE.Vector3( 1,  0,    -0.75), // I
+  new THREE.Vector3( 0,  0,    -0.75), // J
+  new THREE.Vector3( 0,  0.75, -0.75), // K
+  new THREE.Vector3(-1,  0.75, -0.75), // L
+];
+
+const STAIRS_EDGES: [number, number][] = [
+  [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 0],   // front L-face
+  [6, 7], [7, 8], [8, 9], [9,10], [10,11], [11, 6],  // back L-face
+  [0, 6], [1, 7], [2, 8], [3, 9], [4,10], [5,11],    // lateral
+];
+
+// Trapezoid prism (사다리꼴기둥) — trapezoidal top/bottom faces, 8 vertices, 12 edges
+// Bottom trapezoid (y=-0.75): long side AB at z=-0.75, short side DC at z=0.5
+// Top trapezoid (y=+0.75): congruent, directly above — right prism
+const TRAPPRISM_VERTS: THREE.Vector3[] = [
+  new THREE.Vector3(-1,   -0.75, -0.75), // A — bottom long-left
+  new THREE.Vector3( 1,   -0.75, -0.75), // B — bottom long-right
+  new THREE.Vector3( 0.5, -0.75,  0.5),  // C — bottom short-right
+  new THREE.Vector3(-0.5, -0.75,  0.5),  // D — bottom short-left
+  new THREE.Vector3(-1,    0.75, -0.75), // E — top long-left
+  new THREE.Vector3( 1,    0.75, -0.75), // F — top long-right
+  new THREE.Vector3( 0.5,  0.75,  0.5),  // G — top short-right
+  new THREE.Vector3(-0.5,  0.75,  0.5),  // H — top short-left
+];
+
+const TRAPPRISM_EDGES: [number, number][] = [
+  [0, 1], [1, 2], [2, 3], [3, 0], // bottom trapezoid
+  [4, 5], [5, 6], [6, 7], [7, 4], // top trapezoid
+  [0, 4], [1, 5], [2, 6], [3, 7], // lateral (vertical)
+];
+
 /* ─── Shape data accessor ────────────────────────────────────────────────── */
 
 function getShapeData(shape: ShapeType) {
-  if (shape === 'rectbox')  return { verts: RECT_VERTS,     edges: RECT_EDGES };
-  if (shape === 'triprism') return { verts: TRIPRISM_VERTS, edges: TRIPRISM_EDGES };
+  if (shape === 'rectbox')   return { verts: RECT_VERTS,      edges: RECT_EDGES };
+  if (shape === 'triprism')  return { verts: TRIPRISM_VERTS,  edges: TRIPRISM_EDGES };
+  if (shape === 'frustum')   return { verts: FRUSTUM_VERTS,   edges: FRUSTUM_EDGES };
+  if (shape === 'stairs')    return { verts: STAIRS_VERTS,    edges: STAIRS_EDGES };
+  if (shape === 'trapprism') return { verts: TRAPPRISM_VERTS, edges: TRAPPRISM_EDGES };
   return { verts: CUBE_VERTS, edges: CUBE_EDGES };
+}
+
+function buildCustomMesh(verts: THREE.Vector3[], idx: number[]): THREE.Mesh {
+  const positions = idx.flatMap(i => verts[i].toArray());
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.computeVertexNormals();
+  return new THREE.Mesh(geo, new THREE.MeshPhongMaterial({
+    color: 0x1b2a4a, transparent: true, opacity: 0.05, side: THREE.DoubleSide,
+  }));
 }
 
 function buildFaceMesh(shape: ShapeType): THREE.Mesh {
@@ -86,21 +162,51 @@ function buildFaceMesh(shape: ShapeType): THREE.Mesh {
   if (shape === 'rectbox') return new THREE.Mesh(new THREE.BoxGeometry(2, 1.5, 1), mat);
 
   if (shape === 'triprism') {
-    // 2 triangle faces + 3 rectangular side faces (each split into 2 triangles)
-    const idx = [
-      0, 1, 2,        // bottom
-      3, 5, 4,        // top
-      0, 3, 4,  0, 4, 1,  // side AB-DE
-      1, 4, 5,  1, 5, 2,  // side BC-EF
-      2, 5, 3,  2, 3, 0,  // side CA-FD
-    ];
-    const positions = idx.flatMap(i => TRIPRISM_VERTS[i].toArray());
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geo.computeVertexNormals();
-    return new THREE.Mesh(geo, new THREE.MeshPhongMaterial({
-      color: 0x1b2a4a, transparent: true, opacity: 0.05, side: THREE.DoubleSide,
-    }));
+    return buildCustomMesh(TRIPRISM_VERTS, [
+      0, 1, 2,
+      3, 5, 4,
+      0, 3, 4,  0, 4, 1,
+      1, 4, 5,  1, 5, 2,
+      2, 5, 3,  2, 3, 0,
+    ]);
+  }
+
+  if (shape === 'frustum') {
+    return buildCustomMesh(FRUSTUM_VERTS, [
+      0, 1, 2,  0, 2, 3,        // bottom
+      4, 6, 5,  4, 7, 6,        // top (reversed winding)
+      0, 1, 5,  0, 5, 4,        // side AB-EF
+      1, 2, 6,  1, 6, 5,        // side BC-FG
+      2, 3, 7,  2, 7, 6,        // side CD-GH
+      3, 0, 4,  3, 4, 7,        // side DA-HE
+    ]);
+  }
+
+  if (shape === 'stairs') {
+    return buildCustomMesh(STAIRS_VERTS, [
+      // front L-face (fan from vertex 0)
+      0, 1, 2,  0, 2, 3,  0, 3, 4,  0, 4, 5,
+      // back L-face (reversed)
+      6, 8, 7,  6, 9, 8,  6, 10, 9,  6, 11, 10,
+      // lateral rectangles
+      0, 1, 7,  0, 7, 6,
+      1, 2, 8,  1, 8, 7,
+      2, 3, 9,  2, 9, 8,
+      3, 4, 10, 3, 10, 9,
+      4, 5, 11, 4, 11, 10,
+      5, 0, 6,  5, 6, 11,
+    ]);
+  }
+
+  if (shape === 'trapprism') {
+    return buildCustomMesh(TRAPPRISM_VERTS, [
+      0, 1, 2,  0, 2, 3,  // bottom trapezoid
+      4, 6, 5,  4, 7, 6,  // top trapezoid (reversed winding)
+      0, 1, 5,  0, 5, 4,  // back rect (long side AB-EF)
+      3, 2, 6,  3, 6, 7,  // front rect (short side DC-HG)
+      0, 3, 7,  0, 7, 4,  // left rect (leg AD-EH)
+      1, 5, 6,  1, 6, 2,  // right rect (leg BF-GC)
+    ]);
   }
 
   return new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), mat);
@@ -227,7 +333,7 @@ export default function LineRelationsExplorer() {
     if (!el) return;
 
     const isMobile   = window.innerWidth < 768;
-    const edgeRadius = isMobile ? 0.075 : 0.05;
+    const edgeRadius = isMobile ? 0.04 : 0.025;
     const { verts, edges } = getShapeData(shape);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -261,7 +367,7 @@ export default function LineRelationsExplorer() {
     scene.add(buildFaceMesh(shape));
 
     verts.forEach((pt, i) => {
-      const r = isMobile ? 0.1 : 0.07;
+      const r = isMobile ? 0.07 : 0.05;
       const sphere = new THREE.Mesh(
         new THREE.SphereGeometry(r, 12, 12),
         new THREE.MeshPhongMaterial({ color: 0xf2b544, shininess: 80 }),
@@ -273,7 +379,7 @@ export default function LineRelationsExplorer() {
 
     const edgeMeshes: THREE.Mesh[] = [];
     edges.forEach(([vi, vj], edgeIdx) => {
-      const mesh = makeEdgeCylinder(verts[vi], verts[vj], edgeRadius, 0x1b2a4a);
+      const mesh = makeEdgeCylinder(verts[vi], verts[vj], edgeRadius, 0x8b97ac);
       mesh.userData.edgeIdx = edgeIdx;
       scene.add(mesh);
       edgeMeshes.push(mesh);
@@ -370,7 +476,7 @@ export default function LineRelationsExplorer() {
         mat.color.set(0xbdc7d4);
         mat.emissive.set(0x000000);
       } else {
-        mat.color.set(0x1b2a4a);
+        mat.color.set(0x8b97ac);
         mat.emissive.set(0x000000);
       }
     });
@@ -396,23 +502,20 @@ export default function LineRelationsExplorer() {
   return (
     <div className="flex flex-col gap-4">
       {/* Shape selector */}
-      <div>
-        <p className="text-xs font-semibold text-muted uppercase tracking-widest mb-2">도형</p>
-        <div className="flex gap-2 flex-wrap">
-          {SHAPE_LIST.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setShape(key)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
-                shape === key
-                  ? 'bg-navy text-white border-navy'
-                  : 'bg-white text-navy border-navy/20 hover:border-navy/50'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+      <div className="grid grid-cols-3 gap-1 bg-white border border-navy/10 rounded-xl p-1 w-full">
+        {SHAPE_LIST.map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setShape(key)}
+            className={`text-center px-1 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
+              shape === key
+                ? 'bg-navy text-white shadow-sm'
+                : 'text-muted hover:text-navy'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {/* Main layout */}
