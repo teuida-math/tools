@@ -106,8 +106,8 @@ function getPoints(shape: ShapeType, rotation: Rotation, offsetPx: number): THRE
         return [new THREE.Vector2(d, -w / 2), new THREE.Vector2(d + h, -w / 2), new THREE.Vector2(d, w / 2)];
       }
       if (rotation === 1) {
-        // Dir 5: right angle bottom-left, right side vertical → cylinder
-        return [new THREE.Vector2(d, -1), new THREE.Vector2(d + w, -1), new THREE.Vector2(d + w, 1)];
+        // Dir 5: 빗변(hyp) → 오른쪽 수직변 → 외부 원기둥 + 내부 원뿔
+        return [new THREE.Vector2(d, -1), new THREE.Vector2(d + w, 1), new THREE.Vector2(d + w, -1)];
       }
       // Dir 1: right angle bottom-left, apex at top
       return [new THREE.Vector2(d, -1), new THREE.Vector2(d + w, -1), new THREE.Vector2(d, 1)];
@@ -185,8 +185,8 @@ function getNameDesc(
       base = '원뿔';
       desc = '직각삼각형의 짧은 변을 회전축으로 삼아 회전하면 더 납작하고 넓은 원뿔이 됩니다.';
     } else if (rotation === 1) {
-      base = '원기둥';
-      desc = '직각을 이룬 두 변이 축에 수직/평행하게 되어, 회전하면 원기둥이 됩니다.';
+      base = '원기둥 (내부 원뿔)';
+      desc = '직각삼각형을 이 방향으로 회전하면 원기둥 내부에 원뿔 모양이 파인 형태가 됩니다.';
     } else {
       base = '원뿔';
       const dir = rotation === 0 ? '꼭짓점이 위' : '꼭짓점이 아래';
@@ -746,7 +746,7 @@ export default function RevolutionMakerExplorer() {
         <div className="w-full md:w-2/5 bg-white rounded-2xl border border-navy/10 p-3 flex flex-col gap-2 min-h-[320px] touch-none select-none">
           <div className="flex items-center justify-between min-h-[28px]">
             <p className="text-xs font-semibold text-muted uppercase tracking-wide">2D 편집 뷰</p>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col items-end gap-0.5">
               {hasDir && (
                 <button
                   onClick={cycleDirection}
@@ -755,6 +755,7 @@ export default function RevolutionMakerExplorer() {
                   ↻
                 </button>
               )}
+              <p className="text-xs text-navy/50">도형을 드래그해 축에 붙이거나 띄워보세요</p>
             </div>
           </div>
 
@@ -839,7 +840,6 @@ export default function RevolutionMakerExplorer() {
               {/* Drag hint */}
             </svg>
           </div>
-          <p className="text-xs text-muted text-center pb-0.5">← 드래그해 축에 붙이거나 띄워보세요</p>
         </div>
 
         {/* 3D view + name */}
