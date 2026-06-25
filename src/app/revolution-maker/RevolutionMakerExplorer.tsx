@@ -238,13 +238,8 @@ function getNameDesc(
       desc = '반원이 축에서 떨어져 있으면 반토러스(반도넛) 형태가 됩니다.';
     }
   } else if (shape === 'circle') {
-    if (snapped) {
-      base = '구';
-      desc = '원이 축에 접해 회전하면 구 형태가 됩니다.';
-    } else {
-      base = '토러스';
-      desc = '원이 축에서 떨어져 회전하면 토러스(도넛)가 됩니다.';
-    }
+    base = '토러스(원환체)';
+    desc = '원이 축 주위를 회전하면 토러스(도넛 모양)가 됩니다.';
   } else if (shape === 'pentagon') {
     if (snapped) {
       base = '모래시계';
@@ -358,9 +353,8 @@ export default function RevolutionMakerExplorer() {
     if (playing) {
       setPlaying(false);
     } else {
-      const start = angle >= 360 ? 0 : angle;
-      setAngle(start);
-      playAngleRef.current = start;
+      playAngleRef.current = 0;
+      setAngle(0);
       setPlaying(true);
     }
   }
@@ -1048,6 +1042,9 @@ export default function RevolutionMakerExplorer() {
 
         {/* 3D view + name */}
         <div className="w-full md:w-3/5 flex flex-col gap-3">
+          <p className="text-xs text-muted break-keep">
+            3D 뷰: 드래그로 회전, 스크롤/핀치로 확대·축소합니다.
+          </p>
           <div className="relative flex-1">
             <div
               ref={mountRef}
@@ -1112,9 +1109,6 @@ export default function RevolutionMakerExplorer() {
         </div>
       </div>
 
-      <p className="text-xs text-muted break-keep">
-        3D 뷰: 드래그로 회전, 스크롤/핀치로 확대·축소합니다.
-      </p>
     </div>
   );
 }

@@ -47,7 +47,7 @@ export default function RevolutionMakerClient() {
             <li>직각삼각형 (이중 원뿔형) → <strong className="text-navy">이중 원뿔</strong></li>
             <li>이등변삼각형 → <strong className="text-navy">이중 원뿔</strong></li>
             <li>반원 → <strong className="text-navy">구</strong></li>
-            <li>원 → <strong className="text-navy">구 / 토러스</strong></li>
+            <li>원 → <strong className="text-navy">토러스(원환체)</strong></li>
             <li>사다리꼴 (넓은/좁은 변 아래) → <strong className="text-navy">원뿔대</strong></li>
             <li>오각형 → <strong className="text-navy">모래시계</strong></li>
             <li>도형을 회전축에서 띄우면 <strong className="text-navy">중공(hollow)</strong> 회전체가 됩니다</li>
