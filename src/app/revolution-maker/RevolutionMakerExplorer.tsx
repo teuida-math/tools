@@ -24,6 +24,8 @@ const SVG_CY = SH_TOP + SH_H / 2; // 148
 const MIN_SHAPE_W = 32;
 const MIN_SHAPE_H = 48;
 const MAX_SHAPE_H = 240;
+const MIN_TRAP_W = 20;
+const MAX_TRAP_W = 180;
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 type ShapeType = 'rect' | 'rtriangle' | 'itriangle' | 'semicircle' | 'circle' | 'trapezoid' | 'pentagon';
@@ -52,14 +54,23 @@ const SHAPE_DIRECTIONS: Partial<Record<ShapeType, Rotation[]>> = {
 //   - x >= 0 for all points
 //   - Profile should not self-intersect when revolved
 //
-function getPoints(shape: ShapeType, rotation: Rotation, offsetPx: number, shapeWPx = SH_W, shapeHPx = SH_H): THREE.Vector2[] {
+function getPoints(
+  shape: ShapeType,
+  rotation: Rotation,
+  offsetPx: number,
+  shapeWPx = SH_W,
+  shapeHPx = SH_H,
+  trapBotWPx = TRAP_W_BOT,
+  trapTopWPx = TRAP_W_TOP,
+  trapHPx = SH_H,
+  pentWPx = SH_W,
+  pentHPx = SH_H,
+  pentIndentXPx = SH_W * 0.1,
+): THREE.Vector2[] {
   const raw = offsetPx < SNAP ? 0 : offsetPx;
   const d = raw * PX_TO_WORLD;
-  const resizable = shape === 'rect' || shape === 'rtriangle' || shape === 'itriangle';
-  const w = (resizable ? shapeWPx : SH_W) * PX_TO_WORLD;
-  const h = (resizable ? shapeHPx : SH_H) * PX_TO_WORLD;
-  const wBot = TRAP_W_BOT * PX_TO_WORLD; // ≈ 1.711
-  const wTop = TRAP_W_TOP * PX_TO_WORLD; // ≈ 0.895
+  const w = shapeWPx * PX_TO_WORLD;
+  const h = shapeHPx * PX_TO_WORLD;
   const r = h / 2;
 
   if (shape === 'semicircle') {
@@ -123,28 +134,28 @@ function getPoints(shape: ShapeType, rotation: Rotation, offsetPx: number, shape
     }
 
     if (shape === 'pentagon') {
-      // Butterfly: wide at bottom and top, pinched waist at middle
-      // pentagon is not resizable, so r = WORLD_H/2 = 1.0 always
-      const rP = SH_H * PX_TO_WORLD / 2;
-      const wP = SH_W * PX_TO_WORLD;
+      const rP = pentHPx * PX_TO_WORLD / 2;
+      const wP = pentWPx * PX_TO_WORLD;
+      const indentX = pentIndentXPx * PX_TO_WORLD;
       return [
         new THREE.Vector2(d, -rP),
         new THREE.Vector2(d + wP, -rP),
-        new THREE.Vector2(d + wP * 0.1, 0),
+        new THREE.Vector2(d + indentX, 0),
         new THREE.Vector2(d + wP, rP),
         new THREE.Vector2(d, rP),
       ];
     }
 
-    // trapezoid (not resizable, use fixed world values)
-    const rT = SH_H * PX_TO_WORLD / 2;
-    const wT = SH_W * PX_TO_WORLD;
+    // trapezoid
+    const rT = trapHPx * PX_TO_WORLD / 2;
+    const wBotT = trapBotWPx * PX_TO_WORLD;
+    const wTopT = trapTopWPx * PX_TO_WORLD;
     if (rotation === 90) {
       // 아래 직사각형 + 위 삼각형 → 원기둥+원뿔 합성체
       return [
         new THREE.Vector2(d, -rT),
-        new THREE.Vector2(d + wT, -rT),
-        new THREE.Vector2(d + wT, 0),
+        new THREE.Vector2(d + wBotT, -rT),
+        new THREE.Vector2(d + wBotT, 0),
         new THREE.Vector2(d, rT),
       ];
     }
@@ -152,16 +163,16 @@ function getPoints(shape: ShapeType, rotation: Rotation, offsetPx: number, shape
       // Narrow side at bottom, wide side at top (inverted frustum)
       return [
         new THREE.Vector2(d, -rT),
-        new THREE.Vector2(d + wTop, -rT),
-        new THREE.Vector2(d + wBot, rT),
+        new THREE.Vector2(d + wTopT, -rT),
+        new THREE.Vector2(d + wBotT, rT),
         new THREE.Vector2(d, rT),
       ];
     }
     // 0°: wide side at bottom, narrow side at top (standard frustum)
     return [
       new THREE.Vector2(d, -rT),
-      new THREE.Vector2(d + wBot, -rT),
-      new THREE.Vector2(d + wTop, rT),
+      new THREE.Vector2(d + wBotT, -rT),
+      new THREE.Vector2(d + wTopT, rT),
       new THREE.Vector2(d, rT),
     ];
   };
@@ -284,6 +295,12 @@ export default function RevolutionMakerExplorer() {
   const [playing, setPlaying] = useState(false);
   const [shapeWPx, setShapeWPx] = useState(SH_W);
   const [shapeHPx, setShapeHPx] = useState(SH_H);
+  const [trapBotWPx, setTrapBotWPx] = useState(TRAP_W_BOT);
+  const [trapTopWPx, setTrapTopWPx] = useState(TRAP_W_TOP);
+  const [trapHPx, setTrapHPx] = useState(SH_H);
+  const [pentWPx, setPentWPx] = useState(SH_W);
+  const [pentHPx, setPentHPx] = useState(SH_H);
+  const [pentIndentXPx, setPentIndentXPx] = useState(Math.round(SH_W * 0.1));
 
   const meshRef = useRef<THREE.Mesh | null>(null);
   const meshInteriorRef = useRef<THREE.Mesh | null>(null);
@@ -298,19 +315,25 @@ export default function RevolutionMakerExplorer() {
   const playRafRef = useRef(0);
   const playAngleRef = useRef<number>(360);
 
-  const dragState = useRef<{ startPx: number; startOffset: number } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const autoRotateRef = useRef<(() => void) | null>(null);
   // Refs for values read inside native event handlers (avoids stale closures)
-  const shapeRef = useRef<ShapeType>('rect');
   const offsetPxRef = useRef<number>(0);
   const shapeWPxRef = useRef(SH_W);
   const shapeHPxRef = useRef(SH_H);
+  const trapBotWPxRef = useRef(TRAP_W_BOT);
+  const trapTopWPxRef = useRef(TRAP_W_TOP);
+  const trapHPxRef = useRef(SH_H);
+  const pentWPxRef = useRef(SH_W);
+  const pentHPxRef = useRef(SH_H);
+  const pentIndentXPxRef = useRef(Math.round(SH_W * 0.1));
   const resizeDragState = useRef<{
     axis: 'x' | 'y';
     startClient: number;
     startSize: number;
     yInv: boolean;
     maxW: number;
+    target: 'shapeW' | 'shapeH' | 'trapBotW' | 'trapTopW' | 'trapH' | 'pentW' | 'pentH' | 'pentIndent';
   } | null>(null);
 
   function handleShapeChange(s: ShapeType) {
@@ -318,6 +341,12 @@ export default function RevolutionMakerExplorer() {
     setRotation(0);
     setShapeWPx(SH_W);
     setShapeHPx(SH_H);
+    setTrapBotWPx(TRAP_W_BOT);
+    setTrapTopWPx(TRAP_W_TOP);
+    setTrapHPx(SH_H);
+    setPentWPx(SH_W);
+    setPentHPx(SH_H);
+    setPentIndentXPx(Math.round(SH_W * 0.1));
   }
 
   function handleAngleChange(v: number) {
@@ -469,11 +498,26 @@ export default function RevolutionMakerExplorer() {
     };
     updateCamera();
 
+    // Auto-rotation state
+    let autoRotating = true;
+    let autoRotStartTime = performance.now();
+    const AUTO_ROT_SPEED = (2 * Math.PI) / 3; // 360° in 3s
+
+    let autoRotStartTheta = cam.theta;
+
+    // Exposed so shape-change effect can trigger a new spin
+    autoRotateRef.current = () => {
+      autoRotating = true;
+      autoRotStartTime = performance.now();
+      autoRotStartTheta = cam.theta;
+    };
+
     const ptrs = new Map<number, { x: number; y: number }>();
     let lastX = 0, lastY = 0, pinch = 0;
 
     const onDown = (e: PointerEvent) => {
       e.preventDefault();
+      autoRotating = false;
       renderer.domElement.setPointerCapture(e.pointerId);
       ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (ptrs.size === 1) { lastX = e.clientX; lastY = e.clientY; }
@@ -502,6 +546,7 @@ export default function RevolutionMakerExplorer() {
     const onEnd = (e: PointerEvent) => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = 0; };
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      autoRotating = false;
       cam.radius = Math.max(2.5, Math.min(12, cam.radius * (1 + Math.sign(e.deltaY) * 0.08)));
       updateCamera();
     };
@@ -521,6 +566,16 @@ export default function RevolutionMakerExplorer() {
 
     const animate = () => {
       frameIdRef.current = requestAnimationFrame(animate);
+      if (autoRotating) {
+        const elapsed = (performance.now() - autoRotStartTime) / 1000;
+        if (elapsed < (2 * Math.PI) / AUTO_ROT_SPEED) {
+          cam.theta = autoRotStartTheta + elapsed * AUTO_ROT_SPEED;
+          updateCamera();
+        } else {
+          cam.theta = autoRotStartTheta + 2 * Math.PI;
+          autoRotating = false;
+        }
+      }
       renderer.render(scene, camera);
     };
     animate();
@@ -545,7 +600,7 @@ export default function RevolutionMakerExplorer() {
     const scene = sceneRef.current;
     if (!mesh || !meshInterior || !scene) return;
 
-    const rawPoints = getPoints(shape, rotation, offsetPx, shapeWPx, shapeHPx);
+    const rawPoints = getPoints(shape, rotation, offsetPx, shapeWPx, shapeHPx, trapBotWPx, trapTopWPx, trapHPx, pentWPx, pentHPx, pentIndentXPx);
 
     // Remove the last horizontal closing segment to open the top.
     // This lets you look inside from above — the BackSide interior mesh then
@@ -639,7 +694,12 @@ export default function RevolutionMakerExplorer() {
     const wf = materialRef.current?.wireframe ?? false;
     solidEdge.visible = !wf;
     hiddenEdge.visible = !wf;
-  }, [shape, rotation, offsetPx, angle, shapeWPx, shapeHPx]);
+  }, [shape, rotation, offsetPx, angle, shapeWPx, shapeHPx, trapBotWPx, trapTopWPx, trapHPx, pentWPx, pentHPx, pentIndentXPx]);
+
+  // ── Auto-rotate on shape change ──────────────────────────────────────────
+  useEffect(() => {
+    autoRotateRef.current?.();
+  }, [shape]);
 
   // ── Wireframe update ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -661,56 +721,55 @@ export default function RevolutionMakerExplorer() {
     if (!svg) return;
 
     const onDown = (e: PointerEvent) => {
-      e.preventDefault();
       const resizeAttr = (e.target as SVGElement).getAttribute('data-resize');
-      if (resizeAttr) {
-        const isWidth = resizeAttr === 'w';
-        resizeDragState.current = {
-          axis: isWidth ? 'x' : 'y',
-          startClient: isWidth ? e.clientX : e.clientY,
-          startSize: isWidth ? shapeWPxRef.current : shapeHPxRef.current,
-          yInv: resizeAttr === 'h',
-          maxW: SVG_W - 12 - AXIS_X - offsetPxRef.current,
-        };
-        svg.style.cursor = isWidth ? 'ew-resize' : 'ns-resize';
-        svg.setPointerCapture(e.pointerId);
-        return;
+      if (!resizeAttr) return;
+      e.preventDefault();
+      type Target = 'shapeW' | 'shapeH' | 'trapBotW' | 'trapTopW' | 'trapH' | 'pentW' | 'pentH' | 'pentIndent';
+      const maxW = SVG_W - 12 - AXIS_X - offsetPxRef.current;
+      let axis: 'x' | 'y' = 'x';
+      let startClient = e.clientX;
+      let startSize = 0;
+      let yInv = false;
+      let target: Target = 'shapeW';
+      switch (resizeAttr) {
+        case 'w': startSize = shapeWPxRef.current; target = 'shapeW'; break;
+        case 'h': axis = 'y'; startClient = e.clientY; startSize = shapeHPxRef.current; yInv = true; target = 'shapeH'; break;
+        case 'h-inv': axis = 'y'; startClient = e.clientY; startSize = shapeHPxRef.current; target = 'shapeH'; break;
+        case 'trap-bot-w': startSize = trapBotWPxRef.current; target = 'trapBotW'; break;
+        case 'trap-top-w': startSize = trapTopWPxRef.current; target = 'trapTopW'; break;
+        case 'pent-w': startSize = pentWPxRef.current; target = 'pentW'; break;
+        case 'pent-h': axis = 'y'; startClient = e.clientY; startSize = pentHPxRef.current; yInv = true; target = 'pentH'; break;
+        case 'pent-h-inv': axis = 'y'; startClient = e.clientY; startSize = pentHPxRef.current; target = 'pentH'; break;
+        case 'pent-indent': startSize = pentIndentXPxRef.current; target = 'pentIndent'; break;
       }
-      dragState.current = { startPx: e.clientX, startOffset: offsetPxRef.current };
-      svg.style.cursor = 'grabbing';
+      resizeDragState.current = { axis, startClient, startSize, yInv, maxW, target };
+      svg.style.cursor = axis === 'x' ? 'ew-resize' : 'ns-resize';
       svg.setPointerCapture(e.pointerId);
     };
 
     const onMove = (e: PointerEvent) => {
+      if (!resizeDragState.current) return;
       e.preventDefault();
       const rect = svg.getBoundingClientRect();
       const svgScale = SVG_W / rect.width;
-
-      if (resizeDragState.current) {
-        const rd = resizeDragState.current;
-        if (rd.axis === 'x') {
-          const dx = (e.clientX - rd.startClient) * svgScale;
-          const nextW = Math.max(MIN_SHAPE_W, Math.min(rd.maxW, rd.startSize + dx));
-          setShapeWPx(nextW);
-        } else {
-          const dy = (e.clientY - rd.startClient) * svgScale;
-          const delta = rd.yInv ? -dy : dy;
-          const nextH = Math.max(MIN_SHAPE_H, Math.min(MAX_SHAPE_H, rd.startSize + delta));
-          setShapeHPx(nextH);
-        }
-        return;
+      const rd = resizeDragState.current;
+      const rawDelta = rd.axis === 'x'
+        ? (e.clientX - rd.startClient) * svgScale
+        : (e.clientY - rd.startClient) * svgScale;
+      const delta = rd.axis === 'y' && rd.yInv ? -rawDelta : rawDelta;
+      switch (rd.target) {
+        case 'shapeW': setShapeWPx(Math.max(MIN_SHAPE_W, Math.min(rd.maxW, rd.startSize + delta))); break;
+        case 'shapeH': setShapeHPx(Math.max(MIN_SHAPE_H, Math.min(MAX_SHAPE_H, rd.startSize + delta))); break;
+        case 'trapBotW': setTrapBotWPx(Math.max(MIN_TRAP_W, Math.min(MAX_TRAP_W, rd.startSize + delta))); break;
+        case 'trapTopW': setTrapTopWPx(Math.max(MIN_TRAP_W, Math.min(MAX_TRAP_W, rd.startSize + delta))); break;
+        case 'trapH': setTrapHPx(Math.max(MIN_SHAPE_H, Math.min(MAX_SHAPE_H, rd.startSize + delta))); break;
+        case 'pentW': setPentWPx(Math.max(MIN_SHAPE_W, Math.min(rd.maxW, rd.startSize + delta))); break;
+        case 'pentH': setPentHPx(Math.max(MIN_SHAPE_H, Math.min(MAX_SHAPE_H, rd.startSize + delta))); break;
+        case 'pentIndent': setPentIndentXPx(Math.max(0, Math.min(pentWPxRef.current - MIN_TRAP_W, rd.startSize + delta))); break;
       }
-
-      if (!dragState.current) return;
-      const dx = (e.clientX - dragState.current.startPx) * svgScale;
-      const maxOff = shapeRef.current === 'circle' ? CIRCLE_MAX_OFFSET : MAX_OFFSET;
-      let next = Math.max(0, Math.min(maxOff, dragState.current.startOffset + dx));
-      if (next < SNAP) next = 0;
-      setOffsetPx(next);
     };
 
     const onUp = () => {
-      dragState.current = null;
       resizeDragState.current = null;
       svg.style.cursor = '';
     };
@@ -730,13 +789,24 @@ export default function RevolutionMakerExplorer() {
 
   // ── Derived values ───────────────────────────────────────────────────────
   // Keep refs in sync so native event handlers always see the latest values
-  shapeRef.current = shape;
   offsetPxRef.current = offsetPx;
   shapeWPxRef.current = shapeWPx;
   shapeHPxRef.current = shapeHPx;
+  trapBotWPxRef.current = trapBotWPx;
+  trapTopWPxRef.current = trapTopWPx;
+  trapHPxRef.current = trapHPx;
+  pentWPxRef.current = pentWPx;
+  pentHPxRef.current = pentHPx;
+  pentIndentXPxRef.current = pentIndentXPx;
   const isResizable = shape === 'rect' || shape === 'rtriangle' || shape === 'itriangle';
-  const wW = (isResizable ? shapeWPx : SH_W) / SVG_SCALE;
-  const rW = (isResizable ? shapeHPx : SH_H) / 2 / SVG_SCALE;
+  const wW = isResizable ? shapeWPx / SVG_SCALE : SH_W / SVG_SCALE;
+  const rW = isResizable ? shapeHPx / 2 / SVG_SCALE : SH_H / 2 / SVG_SCALE;
+  const trapBotWW = trapBotWPx / SVG_SCALE;
+  const trapTopWW = trapTopWPx / SVG_SCALE;
+  const trapRW = trapHPx / 2 / SVG_SCALE;
+  const pentWW = pentWPx / SVG_SCALE;
+  const pentRW = pentHPx / 2 / SVG_SCALE;
+  const pentIndentXW = pentIndentXPx / SVG_SCALE;
   const snapped = offsetPx < SNAP;
   const shapeLeft = AXIS_X + offsetPx;
   const { name: shapeName, desc: shapeDesc } = getNameDesc(shape, rotation, offsetPx, angle);
@@ -759,8 +829,6 @@ export default function RevolutionMakerExplorer() {
 
   // Polygon points for SVG (world coords → SVG pixels)
   const polyPts = (() => {
-    const wBot = TRAP_W_BOT * PX_TO_WORLD;
-    const wTop = TRAP_W_TOP * PX_TO_WORLD;
     const hW = rW * 2;
     const d = d_svg;
 
@@ -784,14 +852,14 @@ export default function RevolutionMakerExplorer() {
     } else if (shape === 'itriangle') {
       verts = [[d, -rW], [d + wW, 0], [d, rW]];
     } else if (shape === 'pentagon') {
-      verts = [[d, -rW], [d + wW, -rW], [d + wW * 0.1, 0], [d + wW, rW], [d, rW]];
+      verts = [[d, -pentRW], [d + pentWW, -pentRW], [d + pentIndentXW, 0], [d + pentWW, pentRW], [d, pentRW]];
     } else if (shape === 'trapezoid') {
       if (rotation === 90) {
-        verts = [[d, rW], [d + wW, 0], [d + wW, -rW], [d, -rW]];
+        verts = [[d, trapRW], [d + trapBotWW, 0], [d + trapBotWW, -trapRW], [d, -trapRW]];
       } else if (rotation === 180) {
-        verts = [[d, -rW], [d + wTop, -rW], [d + wBot, rW], [d, rW]];
+        verts = [[d, -trapRW], [d + trapTopWW, -trapRW], [d + trapBotWW, trapRW], [d, trapRW]];
       } else {
-        verts = [[d, -rW], [d + wBot, -rW], [d + wTop, rW], [d, rW]];
+        verts = [[d, -trapRW], [d + trapBotWW, -trapRW], [d + trapTopWW, trapRW], [d, trapRW]];
       }
     } else {
       return null; // semicircle, circle
@@ -825,17 +893,30 @@ export default function RevolutionMakerExplorer() {
         <div className="w-full md:w-2/5 bg-white rounded-2xl border border-navy/10 p-3 flex flex-col gap-2 min-h-[320px] touch-none select-none">
           <div className="flex items-center justify-between min-h-[28px]">
             <p className="text-xs font-semibold text-muted uppercase tracking-wide">2D 편집 뷰</p>
-            <div className="flex flex-col items-end gap-0.5">
-              {hasDir && (
+            {hasDir && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-navy/50">방향 전환</span>
                 <button
                   onClick={cycleDirection}
                   className="px-2.5 py-1 rounded-full bg-navy/6 hover:bg-navy/12 text-navy text-sm transition-colors leading-none"
                 >
                   ↻
                 </button>
-              )}
-              <p className="text-xs text-navy/50">도형을 드래그해 축에 붙이거나 띄워보세요</p>
-            </div>
+              </div>
+            )}
+          </div>
+
+          {/* Offset slider */}
+          <div className="flex flex-col items-center">
+            <input
+              type="range"
+              min={0}
+              max={shape === 'circle' ? CIRCLE_MAX_OFFSET : MAX_OFFSET}
+              value={offsetPx}
+              onChange={e => setOffsetPx(+e.target.value)}
+              className="w-[40%] accent-orange"
+            />
+            <p className="text-xs text-navy/55 mt-0.5">슬라이더로 도형을 축에 붙이거나 띄워보세요</p>
           </div>
 
           <div className="flex-1 flex items-center justify-center overflow-hidden">
@@ -844,7 +925,7 @@ export default function RevolutionMakerExplorer() {
               width={SVG_W}
               height={SVG_H}
               viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-              className="select-none touch-none max-w-full cursor-grab"
+              className="select-none touch-none max-w-full"
             >
               {/* Rotation axis */}
               <line
@@ -919,32 +1000,55 @@ export default function RevolutionMakerExplorer() {
               {/* Resize handles */}
               {shape === 'rect' && (
                 <>
-                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY} r={5} fill="#1B2A4A" data-resize="w" style={{ cursor: 'ew-resize' }} />
-                  <circle cx={shapeLeft + shapeWPx / 2} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h" style={{ cursor: 'ns-resize' }} />
+                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY} r={5} fill="#1B2A4A" data-resize="w" className="cursor-ew-resize" />
+                  <circle cx={shapeLeft + shapeWPx / 2} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h" className="cursor-ns-resize" />
                 </>
               )}
               {shape === 'rtriangle' && rotation === 0 && (
                 <>
-                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY + shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="w" style={{ cursor: 'ew-resize' }} />
-                  <circle cx={shapeLeft} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h" style={{ cursor: 'ns-resize' }} />
+                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY + shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="w" className="cursor-ew-resize" />
+                  <circle cx={shapeLeft} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h" className="cursor-ns-resize" />
                 </>
               )}
               {shape === 'rtriangle' && rotation === 90 && (
                 <>
-                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="w" style={{ cursor: 'ew-resize' }} />
-                  <circle cx={shapeLeft} cy={SVG_CY + shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h-inv" style={{ cursor: 'ns-resize' }} />
+                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="w" className="cursor-ew-resize" />
+                  <circle cx={shapeLeft} cy={SVG_CY + shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h-inv" className="cursor-ns-resize" />
                 </>
               )}
               {shape === 'rtriangle' && rotation === 1 && (
                 <>
-                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="w" style={{ cursor: 'ew-resize' }} />
-                  <circle cx={shapeLeft} cy={SVG_CY + shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h-inv" style={{ cursor: 'ns-resize' }} />
+                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="w" className="cursor-ew-resize" />
+                  <circle cx={shapeLeft} cy={SVG_CY + shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h-inv" className="cursor-ns-resize" />
                 </>
               )}
               {shape === 'itriangle' && (
                 <>
-                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY} r={5} fill="#1B2A4A" data-resize="w" style={{ cursor: 'ew-resize' }} />
-                  <circle cx={shapeLeft} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h" style={{ cursor: 'ns-resize' }} />
+                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY} r={5} fill="#1B2A4A" data-resize="w" className="cursor-ew-resize" />
+                  <circle cx={shapeLeft} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h" className="cursor-ns-resize" />
+                </>
+              )}
+              {shape === 'trapezoid' && rotation === 0 && (
+                <>
+                  <circle cx={shapeLeft + trapBotWPx} cy={SVG_CY + trapHPx / 2} r={5} fill="#1B2A4A" data-resize="trap-bot-w" className="cursor-ew-resize" />
+                  <circle cx={shapeLeft + trapTopWPx} cy={SVG_CY - trapHPx / 2} r={5} fill="#1B2A4A" data-resize="trap-top-w" className="cursor-ew-resize" />
+                </>
+              )}
+              {shape === 'trapezoid' && rotation === 180 && (
+                <>
+                  <circle cx={shapeLeft + trapTopWPx} cy={SVG_CY + trapHPx / 2} r={5} fill="#1B2A4A" data-resize="trap-top-w" className="cursor-ew-resize" />
+                  <circle cx={shapeLeft + trapBotWPx} cy={SVG_CY - trapHPx / 2} r={5} fill="#1B2A4A" data-resize="trap-bot-w" className="cursor-ew-resize" />
+                </>
+              )}
+              {shape === 'trapezoid' && rotation === 90 && (
+                <circle cx={shapeLeft + trapBotWPx} cy={SVG_CY + trapHPx / 2} r={5} fill="#1B2A4A" data-resize="trap-bot-w" className="cursor-ew-resize" />
+              )}
+              {shape === 'pentagon' && (
+                <>
+                  <circle cx={shapeLeft} cy={SVG_CY - pentHPx / 2} r={5} fill="#1B2A4A" data-resize="pent-h" className="cursor-ns-resize" />
+                  <circle cx={shapeLeft} cy={SVG_CY + pentHPx / 2} r={5} fill="#1B2A4A" data-resize="pent-h-inv" className="cursor-ns-resize" />
+                  <circle cx={shapeLeft + pentWPx} cy={SVG_CY - pentHPx / 2} r={5} fill="#1B2A4A" data-resize="pent-w" className="cursor-ew-resize" />
+                  <circle cx={shapeLeft + pentIndentXPx} cy={SVG_CY} r={5} fill="#1B2A4A" data-resize="pent-indent" className="cursor-ew-resize" />
                 </>
               )}
 
