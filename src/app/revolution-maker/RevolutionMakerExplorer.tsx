@@ -870,10 +870,10 @@ export default function RevolutionMakerExplorer() {
         ))}
       </div>
 
-      {/* Main area */}
-      <div className="flex flex-col md:flex-row gap-4 items-stretch">
-        {/* 2D SVG view */}
-        <div className="w-full md:w-2/5 bg-white rounded-2xl border border-navy/10 p-3 flex flex-col gap-2 min-h-[320px] select-none">
+      {/* Main area: grid so slider can sit between 2D and 3D on mobile */}
+      <div className="grid grid-cols-1 md:grid-cols-[2fr_3fr] gap-4">
+        {/* 2D SVG view: desktop col1 row1 */}
+        <div className="md:[grid-column:1] md:[grid-row:1] w-full bg-white rounded-2xl border border-navy/10 p-3 flex flex-col gap-2 min-h-[320px] select-none">
           <div className="flex items-center justify-between min-h-[28px]">
             <p className="text-xs font-semibold text-muted uppercase tracking-wide">2D 편집 뷰</p>
             {hasDir && (
@@ -1041,11 +1041,50 @@ export default function RevolutionMakerExplorer() {
           </div>
         </div>
 
-        {/* 3D view + name */}
-        <div className="w-full md:w-3/5 flex flex-col gap-3">
-          <p className="text-xs text-muted break-keep">
-            3D 뷰: 드래그로 회전, 스크롤/핀치로 확대·축소합니다.
-          </p>
+        {/* Angle slider: between 2D and 3D on mobile, full-width below both on desktop */}
+        <div className="md:[grid-column:1/3] md:[grid-row:2] bg-white rounded-2xl border border-navy/10 p-4">
+          <div className="flex justify-between items-center mb-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-navy">회전 각도</span>
+              <button
+                onClick={togglePlay}
+                title={playing ? '일시정지' : '재생'}
+                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs leading-none transition-colors ${
+                  playing
+                    ? 'bg-orange text-white'
+                    : 'bg-navy/8 text-navy hover:bg-navy/15'
+                }`}
+              >
+                {playing ? <Pause size={16} /> : <Play size={16} />}
+              </button>
+            </div>
+            <span className="font-mono text-orange text-lg font-bold leading-none">
+              {Math.round(angle)}°
+            </span>
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="360"
+            value={angle}
+            onChange={e => handleAngleChange(+e.target.value)}
+            className="w-full accent-orange"
+          />
+          <div className="flex justify-between text-xs text-muted mt-1.5">
+            <span>0°</span>
+            <span>90°</span>
+            <span>180°</span>
+            <span>270°</span>
+            <span>360°</span>
+          </div>
+        </div>
+
+        {/* 3D view + name: desktop col2 row1 */}
+        <div className="md:[grid-column:2] md:[grid-row:1] w-full bg-white rounded-2xl border border-navy/10 p-3 flex flex-col gap-2">
+          <div className="flex items-center justify-between min-h-[28px]">
+            <p className="text-xs font-semibold text-muted uppercase tracking-wide">3D 뷰</p>
+            <p className="text-xs text-muted break-keep">드래그로 회전, 스크롤/핀치로 확대·축소</p>
+          </div>
           <div className="relative flex-1" style={{ pointerEvents: 'none' }}>
             <div
               ref={mountRef}
@@ -1069,44 +1108,6 @@ export default function RevolutionMakerExplorer() {
             <p className="text-xl font-bold text-navy leading-snug mb-1.5">{shapeName}</p>
             <p className="text-sm text-muted break-keep">{shapeDesc}</p>
           </div>
-        </div>
-      </div>
-
-      {/* Angle slider */}
-      <div className="bg-white rounded-2xl border border-navy/10 p-4">
-        <div className="flex justify-between items-center mb-2">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-navy">회전 각도</span>
-            <button
-              onClick={togglePlay}
-              title={playing ? '일시정지' : '재생'}
-              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs leading-none transition-colors ${
-                playing
-                  ? 'bg-orange text-white'
-                  : 'bg-navy/8 text-navy hover:bg-navy/15'
-              }`}
-            >
-              {playing ? <Pause size={16} /> : <Play size={16} />}
-            </button>
-          </div>
-          <span className="font-mono text-orange text-lg font-bold leading-none">
-            {Math.round(angle)}°
-          </span>
-        </div>
-        <input
-          type="range"
-          min="0"
-          max="360"
-          value={angle}
-          onChange={e => handleAngleChange(+e.target.value)}
-          className="w-full accent-orange"
-        />
-        <div className="flex justify-between text-xs text-muted mt-1.5">
-          <span>0°</span>
-          <span>90°</span>
-          <span>180°</span>
-          <span>270°</span>
-          <span>360°</span>
         </div>
       </div>
 
