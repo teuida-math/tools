@@ -927,6 +927,7 @@ export default function RevolutionMakerExplorer() {
               height={SVG_H}
               viewBox={`0 0 ${SVG_W} ${SVG_H}`}
               className="select-none touch-pan-y max-w-full"
+              style={{ touchAction: 'pan-y' }}
             >
               {/* Rotation axis */}
               <line
@@ -1001,55 +1002,55 @@ export default function RevolutionMakerExplorer() {
               {/* Resize handles */}
               {shape === 'rect' && (
                 <>
-                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY} r={5} fill="#1B2A4A" data-resize="w" className="cursor-ew-resize touch-none" />
-                  <circle cx={shapeLeft + shapeWPx / 2} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h" className="cursor-ns-resize touch-none" />
+                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY} r={5} fill="#1B2A4A" data-resize="w" className="cursor-ew-resize touch-none" style={{ touchAction: 'none' }} />
+                  <circle cx={shapeLeft + shapeWPx / 2} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h" className="cursor-ns-resize touch-none" style={{ touchAction: 'none' }} />
                 </>
               )}
               {shape === 'rtriangle' && rotation === 0 && (
                 <>
-                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY + shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="w" className="cursor-ew-resize touch-none" />
-                  <circle cx={shapeLeft} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h" className="cursor-ns-resize touch-none" />
+                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY + shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="w" className="cursor-ew-resize touch-none" style={{ touchAction: 'none' }} />
+                  <circle cx={shapeLeft} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h" className="cursor-ns-resize touch-none" style={{ touchAction: 'none' }} />
                 </>
               )}
               {shape === 'rtriangle' && rotation === 90 && (
                 <>
-                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="w" className="cursor-ew-resize touch-none" />
-                  <circle cx={shapeLeft} cy={SVG_CY + shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h-inv" className="cursor-ns-resize touch-none" />
+                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="w" className="cursor-ew-resize touch-none" style={{ touchAction: 'none' }} />
+                  <circle cx={shapeLeft} cy={SVG_CY + shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h-inv" className="cursor-ns-resize touch-none" style={{ touchAction: 'none' }} />
                 </>
               )}
               {shape === 'rtriangle' && rotation === 1 && (
                 <>
-                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="w" className="cursor-ew-resize touch-none" />
-                  <circle cx={shapeLeft} cy={SVG_CY + shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h-inv" className="cursor-ns-resize touch-none" />
+                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="w" className="cursor-ew-resize touch-none" style={{ touchAction: 'none' }} />
+                  <circle cx={shapeLeft} cy={SVG_CY + shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h-inv" className="cursor-ns-resize touch-none" style={{ touchAction: 'none' }} />
                 </>
               )}
               {shape === 'itriangle' && (
                 <>
-                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY} r={5} fill="#1B2A4A" data-resize="w" className="cursor-ew-resize touch-none" />
-                  <circle cx={shapeLeft} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h" className="cursor-ns-resize touch-none" />
+                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY} r={5} fill="#1B2A4A" data-resize="w" className="cursor-ew-resize touch-none" style={{ touchAction: 'none' }} />
+                  <circle cx={shapeLeft} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h" className="cursor-ns-resize touch-none" style={{ touchAction: 'none' }} />
                 </>
               )}
               {shape === 'trapezoid' && rotation === 0 && (
                 <>
-                  <circle cx={shapeLeft + trapBotWPx} cy={SVG_CY + trapHPx / 2} r={5} fill="#1B2A4A" data-resize="trap-bot-w" className="cursor-ew-resize touch-none" />
-                  <circle cx={shapeLeft + trapTopWPx} cy={SVG_CY - trapHPx / 2} r={5} fill="#1B2A4A" data-resize="trap-top-w" className="cursor-ew-resize touch-none" />
+                  <circle cx={shapeLeft + trapBotWPx} cy={SVG_CY + trapHPx / 2} r={5} fill="#1B2A4A" data-resize="trap-bot-w" className="cursor-ew-resize touch-none" style={{ touchAction: 'none' }} />
+                  <circle cx={shapeLeft + trapTopWPx} cy={SVG_CY - trapHPx / 2} r={5} fill="#1B2A4A" data-resize="trap-top-w" className="cursor-ew-resize touch-none" style={{ touchAction: 'none' }} />
                 </>
               )}
               {shape === 'trapezoid' && rotation === 180 && (
                 <>
-                  <circle cx={shapeLeft + trapTopWPx} cy={SVG_CY + trapHPx / 2} r={5} fill="#1B2A4A" data-resize="trap-top-w" className="cursor-ew-resize touch-none" />
-                  <circle cx={shapeLeft + trapBotWPx} cy={SVG_CY - trapHPx / 2} r={5} fill="#1B2A4A" data-resize="trap-bot-w" className="cursor-ew-resize touch-none" />
+                  <circle cx={shapeLeft + trapTopWPx} cy={SVG_CY + trapHPx / 2} r={5} fill="#1B2A4A" data-resize="trap-top-w" className="cursor-ew-resize touch-none" style={{ touchAction: 'none' }} />
+                  <circle cx={shapeLeft + trapBotWPx} cy={SVG_CY - trapHPx / 2} r={5} fill="#1B2A4A" data-resize="trap-bot-w" className="cursor-ew-resize touch-none" style={{ touchAction: 'none' }} />
                 </>
               )}
               {shape === 'trapezoid' && rotation === 90 && (
-                <circle cx={shapeLeft + trapBotWPx} cy={SVG_CY + trapHPx / 2} r={5} fill="#1B2A4A" data-resize="trap-bot-w" className="cursor-ew-resize touch-none" />
+                <circle cx={shapeLeft + trapBotWPx} cy={SVG_CY + trapHPx / 2} r={5} fill="#1B2A4A" data-resize="trap-bot-w" className="cursor-ew-resize touch-none" style={{ touchAction: 'none' }} />
               )}
               {shape === 'pentagon' && (
                 <>
-                  <circle cx={shapeLeft} cy={SVG_CY - pentHPx / 2} r={5} fill="#1B2A4A" data-resize="pent-h" className="cursor-ns-resize touch-none" />
-                  <circle cx={shapeLeft} cy={SVG_CY + pentHPx / 2} r={5} fill="#1B2A4A" data-resize="pent-h-inv" className="cursor-ns-resize touch-none" />
-                  <circle cx={shapeLeft + pentWPx} cy={SVG_CY - pentHPx / 2} r={5} fill="#1B2A4A" data-resize="pent-w" className="cursor-ew-resize touch-none" />
-                  <circle cx={shapeLeft + pentIndentXPx} cy={SVG_CY} r={5} fill="#1B2A4A" data-resize="pent-indent" className="cursor-ew-resize touch-none" />
+                  <circle cx={shapeLeft} cy={SVG_CY - pentHPx / 2} r={5} fill="#1B2A4A" data-resize="pent-h" className="cursor-ns-resize touch-none" style={{ touchAction: 'none' }} />
+                  <circle cx={shapeLeft} cy={SVG_CY + pentHPx / 2} r={5} fill="#1B2A4A" data-resize="pent-h-inv" className="cursor-ns-resize touch-none" style={{ touchAction: 'none' }} />
+                  <circle cx={shapeLeft + pentWPx} cy={SVG_CY - pentHPx / 2} r={5} fill="#1B2A4A" data-resize="pent-w" className="cursor-ew-resize touch-none" style={{ touchAction: 'none' }} />
+                  <circle cx={shapeLeft + pentIndentXPx} cy={SVG_CY} r={5} fill="#1B2A4A" data-resize="pent-indent" className="cursor-ew-resize touch-none" style={{ touchAction: 'none' }} />
                 </>
               )}
 
