@@ -677,11 +677,6 @@ export default function RevolutionMakerExplorer() {
           <div className="flex items-center justify-between min-h-[28px]">
             <p className="text-xs font-semibold text-muted uppercase tracking-wide">2D 편집 뷰</p>
             <div className="flex items-center gap-2">
-              {snapped && (
-                <span className="text-xs font-medium text-orange bg-orange/10 px-2 py-0.5 rounded-full">
-                  • 붙음
-                </span>
-              )}
               {hasDir && (
                 <button
                   onClick={cycleDirection}
@@ -772,18 +767,9 @@ export default function RevolutionMakerExplorer() {
               )}
 
               {/* Drag hint */}
-              <text
-                x={SVG_W / 2 + 16}
-                y={SVG_H - 8}
-                fontSize="9.5"
-                fill="#8B97AC"
-                textAnchor="middle"
-                style={{ fontFamily: 'inherit' }}
-              >
-                ← 드래그해 이동
-              </text>
             </svg>
           </div>
+          <p className="text-xs text-muted text-center pb-0.5">← 드래그해 축에 붙이거나 띄워보세요</p>
         </div>
 
         {/* 3D view + name */}
