@@ -39,7 +39,7 @@ const SHAPES: { key: ShapeType; label: string }[] = [
 // Valid direction rotation values per shape (in cycling order). Absent = no direction button.
 const SHAPE_DIRECTIONS: Partial<Record<ShapeType, Rotation[]>> = {
   rtriangle: [0, 180, 90, 270, 1],
-  trapezoid: [0, 180],
+  trapezoid: [0, 180, 90],
 };
 
 // ─── World points for LatheGeometry ─────────────────────────────────────────
@@ -129,7 +129,16 @@ function getPoints(shape: ShapeType, rotation: Rotation, offsetPx: number): THRE
       ];
     }
 
-    // trapezoid — only 0° and 180° are valid; 90°/270° produce vertical edges (cylinder-wall bug)
+    // trapezoid
+    if (rotation === 90) {
+      // 아래 직사각형 + 위 삼각형 → 원기둥+원뿔 합성체
+      return [
+        new THREE.Vector2(d, -1),
+        new THREE.Vector2(d + w, -1),
+        new THREE.Vector2(d + w, 0),
+        new THREE.Vector2(d, 1),
+      ];
+    }
     if (rotation === 180) {
       // Narrow side at bottom, wide side at top (inverted frustum)
       return [
@@ -225,10 +234,18 @@ function getNameDesc(
       desc = '도형을 회전축으로 드래그해 붙이면 모래시계가 됩니다.';
     }
   } else {
-    // trapezoid — both 0° and 180° produce a frustum
+    // trapezoid
     if (!snapped) {
-      base = '원뿔대 계열';
-      desc = '도형을 회전축으로 드래그해 붙이면 원뿔대가 됩니다.';
+      if (rotation === 90) {
+        base = '원기둥+원뿔 계열';
+        desc = '도형을 회전축으로 드래그해 붙이면 합성 회전체가 됩니다.';
+      } else {
+        base = '원뿔대 계열';
+        desc = '도형을 회전축으로 드래그해 붙이면 원뿔대가 됩니다.';
+      }
+    } else if (rotation === 90) {
+      base = '원기둥+원뿔';
+      desc = '아래는 원기둥, 위는 원뿔이 결합된 합성 회전체가 됩니다.';
     } else {
       base = '원뿔대';
       desc = rotation === 0
@@ -709,7 +726,9 @@ export default function RevolutionMakerExplorer() {
     } else if (shape === 'pentagon') {
       verts = [[d, -1], [d + w, -1], [d + w * 0.1, 0], [d + w, 1], [d, 1]];
     } else if (shape === 'trapezoid') {
-      if (rotation === 180) {
+      if (rotation === 90) {
+        verts = [[d, 1], [d + w, 0], [d + w, -1], [d, -1]];
+      } else if (rotation === 180) {
         verts = [[d, -1], [d + wTop, -1], [d + wBot, 1], [d, 1]];
       } else {
         verts = [[d, -1], [d + wBot, -1], [d + wTop, 1], [d, 1]];
