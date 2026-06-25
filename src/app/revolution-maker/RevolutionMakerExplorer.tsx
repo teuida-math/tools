@@ -744,12 +744,12 @@ export default function RevolutionMakerExplorer() {
       }
       resizeDragState.current = { axis, startClient, startSize, yInv, maxW, target };
       svg.style.cursor = axis === 'x' ? 'ew-resize' : 'ns-resize';
+      svg.style.touchAction = 'none';
       svg.setPointerCapture(e.pointerId);
     };
 
     const onMove = (e: PointerEvent) => {
       if (!resizeDragState.current) return;
-      e.preventDefault();
       const rect = svg.getBoundingClientRect();
       const svgScale = SVG_W / rect.width;
       const rd = resizeDragState.current;
@@ -772,10 +772,11 @@ export default function RevolutionMakerExplorer() {
     const onUp = () => {
       resizeDragState.current = null;
       svg.style.cursor = '';
+      svg.style.touchAction = '';
     };
 
     svg.addEventListener('pointerdown', onDown, { passive: false });
-    svg.addEventListener('pointermove', onMove, { passive: false });
+    svg.addEventListener('pointermove', onMove, { passive: true });
     svg.addEventListener('pointerup', onUp);
     svg.addEventListener('pointercancel', onUp);
 
