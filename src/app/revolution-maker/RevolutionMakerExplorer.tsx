@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { Play, Pause } from 'lucide-react';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 const SVG_W = 280;
@@ -23,7 +24,7 @@ const SVG_CY = SH_TOP + SH_H / 2; // 148
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 type ShapeType = 'rect' | 'rtriangle' | 'itriangle' | 'semicircle' | 'circle' | 'trapezoid' | 'pentagon';
-type Rotation = 0 | 90 | 180 | 270;
+type Rotation = 0 | 1 | 90 | 180 | 270;
 
 const SHAPES: { key: ShapeType; label: string }[] = [
   { key: 'rect', label: '직사각형' },
@@ -37,7 +38,7 @@ const SHAPES: { key: ShapeType; label: string }[] = [
 
 // Valid direction rotation values per shape (in cycling order). Absent = no direction button.
 const SHAPE_DIRECTIONS: Partial<Record<ShapeType, Rotation[]>> = {
-  rtriangle: [0, 180, 90, 270],
+  rtriangle: [0, 180, 90, 270, 1],
   trapezoid: [0, 180],
 };
 
@@ -101,7 +102,11 @@ function getPoints(shape: ShapeType, rotation: Rotation, offsetPx: number): THRE
         return [new THREE.Vector2(d, -1), new THREE.Vector2(d + w, 1), new THREE.Vector2(d, 1)];
       }
       if (rotation === 180) {
-        // Dir 2: right angle bottom-right, hypotenuse on axis side
+        // Dir 2: revolve around short leg (w) → wider, flatter cone (different proportions)
+        return [new THREE.Vector2(d, -w / 2), new THREE.Vector2(d + h, -w / 2), new THREE.Vector2(d, w / 2)];
+      }
+      if (rotation === 1) {
+        // Dir 5: right angle bottom-left, right side vertical → cylinder
         return [new THREE.Vector2(d, -1), new THREE.Vector2(d + w, -1), new THREE.Vector2(d + w, 1)];
       }
       // Dir 1: right angle bottom-left, apex at top
@@ -171,12 +176,15 @@ function getNameDesc(
     }
   } else if (shape === 'rtriangle') {
     if (!snapped) {
-      base = '원뿔 계열';
+      base = rotation === 1 ? '원기둥 계열' : '원뿔 계열';
       desc = '도형을 회전축으로 드래그해 붙이면 회전체가 됩니다.';
     } else if (rotation === 270) {
       base = '이중 원뿔';
       desc = '직각삼각형의 빗변을 회전축에 맞추어 회전하면 이중 원뿔(쌍뿔)이 됩니다.';
     } else if (rotation === 180) {
+      base = '원뿔';
+      desc = '직각삼각형의 짧은 변을 회전축으로 삼아 회전하면 더 납작하고 넓은 원뿔이 됩니다.';
+    } else if (rotation === 1) {
       base = '원기둥';
       desc = '직각을 이룬 두 변이 축에 수직/평행하게 되어, 회전하면 원기둥이 됩니다.';
     } else {
@@ -250,7 +258,9 @@ export default function RevolutionMakerExplorer() {
   const [playing, setPlaying] = useState(false);
 
   const meshRef = useRef<THREE.Mesh | null>(null);
+  const meshInteriorRef = useRef<THREE.Mesh | null>(null);
   const materialRef = useRef<THREE.MeshPhongMaterial | null>(null);
+  const materialInteriorRef = useRef<THREE.MeshPhongMaterial | null>(null);
   const solidEdgeRef = useRef<THREE.LineSegments | null>(null);
   const hiddenEdgeRef = useRef<THREE.LineSegments | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -357,6 +367,25 @@ export default function RevolutionMakerExplorer() {
     axisLine.computeLineDistances();
     scene.add(axisLine);
 
+    // Interior mesh (BackSide) — 내부 벽면·캡을 안쪽에서 렌더링
+    const materialInterior = new THREE.MeshPhongMaterial({
+      color: 0xf4f2ee,
+      emissive: 0xf4f2ee,
+      emissiveIntensity: 0.2,
+      shininess: 0,
+      transparent: true,
+      opacity: 0.4,
+      side: THREE.BackSide,
+      depthWrite: false, // 깊이 버퍼 미기록 → 외면에 가려지지 않음
+    });
+    materialInteriorRef.current = materialInterior;
+
+    const meshInterior = new THREE.Mesh(new THREE.BufferGeometry(), materialInterior);
+    meshInterior.renderOrder = 0;
+    scene.add(meshInterior);
+    meshInteriorRef.current = meshInterior;
+
+    // Exterior mesh (FrontSide) — 반투명 외면
     const material = new THREE.MeshPhongMaterial({
       color: 0xf4f2ee,
       emissive: 0xf4f2ee,
@@ -364,11 +393,12 @@ export default function RevolutionMakerExplorer() {
       shininess: 0,
       transparent: true,
       opacity: 0.55,
-      side: THREE.DoubleSide,
+      side: THREE.FrontSide,
     });
     materialRef.current = material;
 
     const mesh = new THREE.Mesh(new THREE.BufferGeometry(), material);
+    mesh.renderOrder = 1;
     scene.add(mesh);
     meshRef.current = mesh;
 
@@ -455,8 +485,9 @@ export default function RevolutionMakerExplorer() {
   // ── Geometry + edges update ──────────────────────────────────────────────
   useEffect(() => {
     const mesh = meshRef.current;
+    const meshInterior = meshInteriorRef.current;
     const scene = sceneRef.current;
-    if (!mesh || !scene) return;
+    if (!mesh || !meshInterior || !scene) return;
 
     const points = getPoints(shape, rotation, offsetPx);
     const phiLength = Math.max((angle * Math.PI) / 180, 0.001);
@@ -464,6 +495,7 @@ export default function RevolutionMakerExplorer() {
 
     if (mesh.geometry) mesh.geometry.dispose();
     mesh.geometry = geo;
+    meshInterior.geometry = geo; // 동일 geometry 공유 (별도 dispose 불필요)
 
     const prev = solidEdgeRef.current;
     const prevH = hiddenEdgeRef.current;
@@ -476,6 +508,7 @@ export default function RevolutionMakerExplorer() {
       edgesGeo,
       new THREE.LineBasicMaterial({ color: 0x1b2a4a, opacity: 0.9, transparent: true }),
     );
+    solidEdge.renderOrder = 2; // 메시 위에 렌더링
     scene.add(solidEdge);
     solidEdgeRef.current = solidEdge;
 
@@ -491,6 +524,7 @@ export default function RevolutionMakerExplorer() {
       }),
     );
     hiddenEdge.computeLineDistances();
+    hiddenEdge.renderOrder = 3; // 항상 최상위
     scene.add(hiddenEdge);
     hiddenEdgeRef.current = hiddenEdge;
 
@@ -502,10 +536,12 @@ export default function RevolutionMakerExplorer() {
   // ── Wireframe update ─────────────────────────────────────────────────────
   useEffect(() => {
     const mat = materialRef.current;
-    if (!mat) return;
+    const matInterior = materialInteriorRef.current;
+    if (!mat || !matInterior) return;
     mat.wireframe = wireframe;
     mat.opacity = wireframe ? 0.9 : 0.55;
     mat.needsUpdate = true;
+    matInterior.visible = !wireframe; // 와이어프레임 모드에서 내부 메시 숨김
     if (solidEdgeRef.current) solidEdgeRef.current.visible = !wireframe;
     if (hiddenEdgeRef.current) hiddenEdgeRef.current.visible = !wireframe;
   }, [wireframe]);
@@ -592,6 +628,8 @@ export default function RevolutionMakerExplorer() {
       } else if (rotation === 90) {
         verts = [[d, -1], [d + w, 1], [d, 1]];
       } else if (rotation === 180) {
+        verts = [[d, -w / 2], [d + h, -w / 2], [d, w / 2]];
+      } else if (rotation === 1) {
         verts = [[d, -1], [d + w, -1], [d + w, 1]];
       } else {
         verts = [[d, -1], [d + w, -1], [d, 1]];
@@ -790,7 +828,7 @@ export default function RevolutionMakerExplorer() {
                   : 'bg-navy/8 text-navy hover:bg-navy/15'
               }`}
             >
-              {playing ? '⏸' : '▶'}
+              {playing ? <Pause size={16} /> : <Play size={16} />}
             </button>
           </div>
           <span className="font-mono text-orange text-lg font-bold leading-none">
