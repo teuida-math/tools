@@ -259,6 +259,10 @@ export default function RevolutionMakerExplorer() {
   const playAngleRef = useRef<number>(360);
 
   const dragState = useRef<{ startPx: number; startOffset: number } | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  // Refs for values read inside native event handlers (avoids stale closures)
+  const shapeRef = useRef<ShapeType>('rect');
+  const offsetPxRef = useRef<number>(0);
 
   function handleShapeChange(s: ShapeType) {
     setShape(s);
@@ -322,6 +326,7 @@ export default function RevolutionMakerExplorer() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(el.clientWidth, el.clientHeight);
     renderer.setClearColor(0xffffff);
+    renderer.domElement.style.touchAction = 'none';
     el.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -382,6 +387,7 @@ export default function RevolutionMakerExplorer() {
     let lastX = 0, lastY = 0, pinch = 0;
 
     const onDown = (e: PointerEvent) => {
+      e.preventDefault();
       renderer.domElement.setPointerCapture(e.pointerId);
       ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (ptrs.size === 1) { lastX = e.clientX; lastY = e.clientY; }
@@ -414,7 +420,7 @@ export default function RevolutionMakerExplorer() {
       updateCamera();
     };
 
-    renderer.domElement.addEventListener('pointerdown', onDown);
+    renderer.domElement.addEventListener('pointerdown', onDown, { passive: false });
     renderer.domElement.addEventListener('pointermove', onMove);
     renderer.domElement.addEventListener('pointerup', onEnd);
     renderer.domElement.addEventListener('pointercancel', onEnd);
@@ -504,30 +510,48 @@ export default function RevolutionMakerExplorer() {
     if (hiddenEdgeRef.current) hiddenEdgeRef.current.visible = !wireframe;
   }, [wireframe]);
 
-  // ── SVG drag handlers ────────────────────────────────────────────────────
-  function onSvgDown(e: React.PointerEvent<SVGSVGElement>) {
-    e.preventDefault();
-    dragState.current = { startPx: e.clientX, startOffset: offsetPx };
-    (e.currentTarget as SVGSVGElement).setPointerCapture(e.pointerId);
-  }
+  // ── SVG drag — native Pointer Events (iOS/WKWebView 호환) ───────────────
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
 
-  function onSvgMove(e: React.PointerEvent<SVGSVGElement>) {
-    if (!dragState.current) return;
-    const svgEl = e.currentTarget as SVGSVGElement;
-    const rect = svgEl.getBoundingClientRect();
-    const svgScale = SVG_W / rect.width;
-    const dx = (e.clientX - dragState.current.startPx) * svgScale;
-    const maxOff = shape === 'circle' ? CIRCLE_MAX_OFFSET : MAX_OFFSET;
-    let next = Math.max(0, Math.min(maxOff, dragState.current.startOffset + dx));
-    if (next < SNAP) next = 0;
-    setOffsetPx(next);
-  }
+    const onDown = (e: PointerEvent) => {
+      e.preventDefault();
+      dragState.current = { startPx: e.clientX, startOffset: offsetPxRef.current };
+      svg.setPointerCapture(e.pointerId);
+    };
 
-  function onSvgUp() {
-    dragState.current = null;
-  }
+    const onMove = (e: PointerEvent) => {
+      if (!dragState.current) return;
+      e.preventDefault();
+      const rect = svg.getBoundingClientRect();
+      const svgScale = SVG_W / rect.width;
+      const dx = (e.clientX - dragState.current.startPx) * svgScale;
+      const maxOff = shapeRef.current === 'circle' ? CIRCLE_MAX_OFFSET : MAX_OFFSET;
+      let next = Math.max(0, Math.min(maxOff, dragState.current.startOffset + dx));
+      if (next < SNAP) next = 0;
+      setOffsetPx(next);
+    };
+
+    const onUp = () => { dragState.current = null; };
+
+    svg.addEventListener('pointerdown', onDown, { passive: false });
+    svg.addEventListener('pointermove', onMove, { passive: false });
+    svg.addEventListener('pointerup', onUp);
+    svg.addEventListener('pointercancel', onUp);
+
+    return () => {
+      svg.removeEventListener('pointerdown', onDown);
+      svg.removeEventListener('pointermove', onMove);
+      svg.removeEventListener('pointerup', onUp);
+      svg.removeEventListener('pointercancel', onUp);
+    };
+  }, []);
 
   // ── Derived values ───────────────────────────────────────────────────────
+  // Keep refs in sync so native event handlers always see the latest values
+  shapeRef.current = shape;
+  offsetPxRef.current = offsetPx;
   const snapped = offsetPx < SNAP;
   const shapeLeft = AXIS_X + offsetPx;
   const { name: shapeName, desc: shapeDesc } = getNameDesc(shape, rotation, offsetPx, angle);
@@ -611,7 +635,7 @@ export default function RevolutionMakerExplorer() {
       {/* Main area */}
       <div className="flex flex-col md:flex-row gap-4 items-stretch">
         {/* 2D SVG view */}
-        <div className="w-full md:w-2/5 bg-white rounded-2xl border border-navy/10 p-3 flex flex-col gap-2 min-h-[320px]">
+        <div className="w-full md:w-2/5 bg-white rounded-2xl border border-navy/10 p-3 flex flex-col gap-2 min-h-[320px] touch-none select-none">
           <div className="flex items-center justify-between min-h-[28px]">
             <p className="text-xs font-semibold text-muted uppercase tracking-wide">2D 편집 뷰</p>
             <div className="flex items-center gap-2">
@@ -633,14 +657,11 @@ export default function RevolutionMakerExplorer() {
 
           <div className="flex-1 flex items-center justify-center overflow-hidden">
             <svg
+              ref={svgRef}
               width={SVG_W}
               height={SVG_H}
               viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-              className="select-none max-w-full cursor-grab active:cursor-grabbing"
-              onPointerDown={onSvgDown}
-              onPointerMove={onSvgMove}
-              onPointerUp={onSvgUp}
-              onPointerCancel={onSvgUp}
+              className="select-none touch-none max-w-full cursor-grab active:cursor-grabbing"
             >
               {/* Rotation axis */}
               <line
@@ -732,7 +753,7 @@ export default function RevolutionMakerExplorer() {
           <div className="relative flex-1">
             <div
               ref={mountRef}
-              className="w-full aspect-[4/3] md:aspect-auto md:h-[340px] bg-white rounded-2xl border border-navy/10 overflow-hidden cursor-grab active:cursor-grabbing"
+              className="w-full aspect-[4/3] md:aspect-auto md:h-[340px] bg-white rounded-2xl border border-navy/10 overflow-hidden cursor-grab active:cursor-grabbing touch-none"
             />
             <button
               onClick={() => setWireframe(v => !v)}
