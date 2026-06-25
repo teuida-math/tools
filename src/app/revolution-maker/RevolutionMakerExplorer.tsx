@@ -401,6 +401,7 @@ export default function RevolutionMakerExplorer() {
     renderer.setSize(el.clientWidth, el.clientHeight);
     renderer.setClearColor(0xffffff);
     renderer.domElement.style.touchAction = 'none';
+    renderer.domElement.style.pointerEvents = 'auto';
     el.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -901,7 +902,7 @@ export default function RevolutionMakerExplorer() {
             <p className="text-xs text-navy/55 mt-0.5">슬라이더로 도형을 축에 붙이거나 띄워보세요</p>
           </div>
 
-          <div className="flex-1 flex items-center justify-center overflow-hidden">
+          <div className="flex-1 flex items-center justify-center overflow-hidden" style={{ pointerEvents: 'none' }}>
             <svg
               ref={svgRef}
               width={SVG_W}
@@ -1045,7 +1046,7 @@ export default function RevolutionMakerExplorer() {
           <p className="text-xs text-muted break-keep">
             3D 뷰: 드래그로 회전, 스크롤/핀치로 확대·축소합니다.
           </p>
-          <div className="relative flex-1">
+          <div className="relative flex-1" style={{ pointerEvents: 'none' }}>
             <div
               ref={mountRef}
               className="w-full aspect-[4/3] md:aspect-auto md:h-[340px] bg-white rounded-2xl border border-navy/10 overflow-hidden cursor-grab active:cursor-grabbing touch-none"
