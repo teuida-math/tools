@@ -400,7 +400,7 @@ export default function RevolutionMakerExplorer() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(el.clientWidth, el.clientHeight);
     renderer.setClearColor(0xffffff);
-    renderer.domElement.style.touchAction = 'pan-y';
+    renderer.domElement.style.touchAction = 'none';
     renderer.domElement.style.pointerEvents = 'auto';
     el.appendChild(renderer.domElement);
 
@@ -1049,7 +1049,7 @@ export default function RevolutionMakerExplorer() {
           <div className="relative flex-1" style={{ pointerEvents: 'none' }}>
             <div
               ref={mountRef}
-              className="w-full aspect-[4/3] md:aspect-auto md:h-[340px] bg-white rounded-2xl border border-navy/10 overflow-hidden cursor-grab active:cursor-grabbing"
+              className="w-full aspect-[4/3] max-h-[280px] md:aspect-auto md:max-h-none md:h-[340px] bg-white rounded-2xl border border-navy/10 overflow-hidden cursor-grab active:cursor-grabbing"
             />
             <button
               onClick={() => setWireframe(v => !v)}
