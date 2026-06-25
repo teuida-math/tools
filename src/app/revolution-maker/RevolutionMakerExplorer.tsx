@@ -506,7 +506,18 @@ export default function RevolutionMakerExplorer() {
     const scene = sceneRef.current;
     if (!mesh || !meshInterior || !scene) return;
 
-    const points = getPoints(shape, rotation, offsetPx);
+    const rawPoints = getPoints(shape, rotation, offsetPx);
+
+    // Remove the last horizontal closing segment to open the top.
+    // This lets you look inside from above — the BackSide interior mesh then
+    // reveals the bottom cap (floor) and inner walls through the open top.
+    const points = (() => {
+      const n = rawPoints.length;
+      if (n < 2) return rawPoints;
+      const last = rawPoints[n - 1], prev = rawPoints[n - 2];
+      return Math.abs(last.y - prev.y) < 0.001 ? rawPoints.slice(0, n - 1) : rawPoints;
+    })();
+
     const phiLength = Math.max((angle * Math.PI) / 180, 0.001);
     const geo = new THREE.LatheGeometry(points, 64, 0, phiLength);
 
@@ -565,14 +576,10 @@ export default function RevolutionMakerExplorer() {
         }
       }
 
-      // Terminal open rings (first/last profile point not on axis and not part of horizontal segment)
-      const p0 = points[0], p1 = points[1];
-      const pN = points[points.length - 1], pNm1 = points[points.length - 2];
-      if (p0.x > 0.005 && Math.abs(p0.y - p1.y) > 0.001) {
+      // Terminal open ring at the START (bottom) only — top is intentionally open
+      const p0 = points[0], p1x = points[1];
+      if (p0.x > 0.005 && Math.abs(p0.y - p1x.y) > 0.001) {
         capDefs.push({ y: p0.y, innerR: 0, outerR: p0.x });
-      }
-      if (pN.x > 0.005 && Math.abs(pN.y - pNm1.y) > 0.001) {
-        capDefs.push({ y: pN.y, innerR: 0, outerR: pN.x });
       }
 
       const wfNow = materialRef.current?.wireframe ?? false;
