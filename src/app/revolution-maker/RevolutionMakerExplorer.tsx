@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { Play, Pause } from 'lucide-react';
 
@@ -715,47 +715,41 @@ export default function RevolutionMakerExplorer() {
     if (hiddenEdgeRef.current) hiddenEdgeRef.current.visible = !wireframe;
   }, [wireframe]);
 
-  // ── SVG drag — native Pointer Events (iOS/WKWebView 호환) ───────────────
-  useEffect(() => {
-    const svg = svgRef.current;
-    if (!svg) return;
+  // ── SVG drag — circle-level Pointer Events ───────────────────────────────
+  const handleCirclePointerDown = useCallback((e: React.PointerEvent<SVGCircleElement>) => {
+    const resizeAttr = e.currentTarget.getAttribute('data-resize');
+    if (!resizeAttr) return;
+    e.preventDefault();
+    type Target = 'shapeW' | 'shapeH' | 'trapBotW' | 'trapTopW' | 'trapH' | 'pentW' | 'pentH' | 'pentIndent';
+    const maxW = SVG_W - 12 - AXIS_X - offsetPxRef.current;
+    let axis: 'x' | 'y' = 'x';
+    let startClient = e.clientX;
+    let startSize = 0;
+    let yInv = false;
+    let target: Target = 'shapeW';
+    switch (resizeAttr) {
+      case 'w': startSize = shapeWPxRef.current; target = 'shapeW'; break;
+      case 'h': axis = 'y'; startClient = e.clientY; startSize = shapeHPxRef.current; yInv = true; target = 'shapeH'; break;
+      case 'h-inv': axis = 'y'; startClient = e.clientY; startSize = shapeHPxRef.current; target = 'shapeH'; break;
+      case 'trap-bot-w': startSize = trapBotWPxRef.current; target = 'trapBotW'; break;
+      case 'trap-top-w': startSize = trapTopWPxRef.current; target = 'trapTopW'; break;
+      case 'pent-w': startSize = pentWPxRef.current; target = 'pentW'; break;
+      case 'pent-h': axis = 'y'; startClient = e.clientY; startSize = pentHPxRef.current; yInv = true; target = 'pentH'; break;
+      case 'pent-h-inv': axis = 'y'; startClient = e.clientY; startSize = pentHPxRef.current; target = 'pentH'; break;
+      case 'pent-indent': startSize = pentIndentXPxRef.current; target = 'pentIndent'; break;
+    }
+    resizeDragState.current = { axis, startClient, startSize, yInv, maxW, target };
 
-    const onDown = (e: PointerEvent) => {
-      const resizeAttr = (e.target as SVGElement).getAttribute('data-resize');
-      if (!resizeAttr) return;
-      e.preventDefault();
-      type Target = 'shapeW' | 'shapeH' | 'trapBotW' | 'trapTopW' | 'trapH' | 'pentW' | 'pentH' | 'pentIndent';
-      const maxW = SVG_W - 12 - AXIS_X - offsetPxRef.current;
-      let axis: 'x' | 'y' = 'x';
-      let startClient = e.clientX;
-      let startSize = 0;
-      let yInv = false;
-      let target: Target = 'shapeW';
-      switch (resizeAttr) {
-        case 'w': startSize = shapeWPxRef.current; target = 'shapeW'; break;
-        case 'h': axis = 'y'; startClient = e.clientY; startSize = shapeHPxRef.current; yInv = true; target = 'shapeH'; break;
-        case 'h-inv': axis = 'y'; startClient = e.clientY; startSize = shapeHPxRef.current; target = 'shapeH'; break;
-        case 'trap-bot-w': startSize = trapBotWPxRef.current; target = 'trapBotW'; break;
-        case 'trap-top-w': startSize = trapTopWPxRef.current; target = 'trapTopW'; break;
-        case 'pent-w': startSize = pentWPxRef.current; target = 'pentW'; break;
-        case 'pent-h': axis = 'y'; startClient = e.clientY; startSize = pentHPxRef.current; yInv = true; target = 'pentH'; break;
-        case 'pent-h-inv': axis = 'y'; startClient = e.clientY; startSize = pentHPxRef.current; target = 'pentH'; break;
-        case 'pent-indent': startSize = pentIndentXPxRef.current; target = 'pentIndent'; break;
-      }
-      resizeDragState.current = { axis, startClient, startSize, yInv, maxW, target };
-      svg.style.cursor = axis === 'x' ? 'ew-resize' : 'ns-resize';
-      svg.style.touchAction = 'none';
-      svg.setPointerCapture(e.pointerId);
-    };
-
-    const onMove = (e: PointerEvent) => {
-      if (!resizeDragState.current) return;
+    const onMove = (ev: PointerEvent) => {
+      const rd = resizeDragState.current;
+      if (!rd) return;
+      const svg = svgRef.current;
+      if (!svg) return;
       const rect = svg.getBoundingClientRect();
       const svgScale = SVG_W / rect.width;
-      const rd = resizeDragState.current;
       const rawDelta = rd.axis === 'x'
-        ? (e.clientX - rd.startClient) * svgScale
-        : (e.clientY - rd.startClient) * svgScale;
+        ? (ev.clientX - rd.startClient) * svgScale
+        : (ev.clientY - rd.startClient) * svgScale;
       const delta = rd.axis === 'y' && rd.yInv ? -rawDelta : rawDelta;
       switch (rd.target) {
         case 'shapeW': setShapeWPx(Math.max(MIN_SHAPE_W, Math.min(rd.maxW, rd.startSize + delta))); break;
@@ -771,21 +765,14 @@ export default function RevolutionMakerExplorer() {
 
     const onUp = () => {
       resizeDragState.current = null;
-      svg.style.cursor = '';
-      svg.style.touchAction = '';
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
     };
 
-    svg.addEventListener('pointerdown', onDown, { passive: false });
-    svg.addEventListener('pointermove', onMove, { passive: true });
-    svg.addEventListener('pointerup', onUp);
-    svg.addEventListener('pointercancel', onUp);
-
-    return () => {
-      svg.removeEventListener('pointerdown', onDown);
-      svg.removeEventListener('pointermove', onMove);
-      svg.removeEventListener('pointerup', onUp);
-      svg.removeEventListener('pointercancel', onUp);
-    };
+    window.addEventListener('pointermove', onMove, { passive: true });
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
   }, []);
 
   // ── Derived values ───────────────────────────────────────────────────────
@@ -927,7 +914,6 @@ export default function RevolutionMakerExplorer() {
               height={SVG_H}
               viewBox={`0 0 ${SVG_W} ${SVG_H}`}
               className="select-none touch-pan-y max-w-full"
-              style={{ touchAction: 'pan-y' }}
             >
               {/* Rotation axis */}
               <line
@@ -1002,55 +988,55 @@ export default function RevolutionMakerExplorer() {
               {/* Resize handles */}
               {shape === 'rect' && (
                 <>
-                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY} r={5} fill="#1B2A4A" data-resize="w" className="cursor-ew-resize touch-none" style={{ touchAction: 'none' }} />
-                  <circle cx={shapeLeft + shapeWPx / 2} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h" className="cursor-ns-resize touch-none" style={{ touchAction: 'none' }} />
+                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY} r={5} fill="#1B2A4A" data-resize="w" className="touch-none" style={{ touchAction: 'none', cursor: 'pointer' }} onPointerDown={handleCirclePointerDown} />
+                  <circle cx={shapeLeft + shapeWPx / 2} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h" className="touch-none" style={{ touchAction: 'none', cursor: 'pointer' }} onPointerDown={handleCirclePointerDown} />
                 </>
               )}
               {shape === 'rtriangle' && rotation === 0 && (
                 <>
-                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY + shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="w" className="cursor-ew-resize touch-none" style={{ touchAction: 'none' }} />
-                  <circle cx={shapeLeft} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h" className="cursor-ns-resize touch-none" style={{ touchAction: 'none' }} />
+                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY + shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="w" className="touch-none" style={{ touchAction: 'none', cursor: 'pointer' }} onPointerDown={handleCirclePointerDown} />
+                  <circle cx={shapeLeft} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h" className="touch-none" style={{ touchAction: 'none', cursor: 'pointer' }} onPointerDown={handleCirclePointerDown} />
                 </>
               )}
               {shape === 'rtriangle' && rotation === 90 && (
                 <>
-                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="w" className="cursor-ew-resize touch-none" style={{ touchAction: 'none' }} />
-                  <circle cx={shapeLeft} cy={SVG_CY + shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h-inv" className="cursor-ns-resize touch-none" style={{ touchAction: 'none' }} />
+                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="w" className="touch-none" style={{ touchAction: 'none', cursor: 'pointer' }} onPointerDown={handleCirclePointerDown} />
+                  <circle cx={shapeLeft} cy={SVG_CY + shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h-inv" className="touch-none" style={{ touchAction: 'none', cursor: 'pointer' }} onPointerDown={handleCirclePointerDown} />
                 </>
               )}
               {shape === 'rtriangle' && rotation === 1 && (
                 <>
-                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="w" className="cursor-ew-resize touch-none" style={{ touchAction: 'none' }} />
-                  <circle cx={shapeLeft} cy={SVG_CY + shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h-inv" className="cursor-ns-resize touch-none" style={{ touchAction: 'none' }} />
+                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="w" className="touch-none" style={{ touchAction: 'none', cursor: 'pointer' }} onPointerDown={handleCirclePointerDown} />
+                  <circle cx={shapeLeft} cy={SVG_CY + shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h-inv" className="touch-none" style={{ touchAction: 'none', cursor: 'pointer' }} onPointerDown={handleCirclePointerDown} />
                 </>
               )}
               {shape === 'itriangle' && (
                 <>
-                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY} r={5} fill="#1B2A4A" data-resize="w" className="cursor-ew-resize touch-none" style={{ touchAction: 'none' }} />
-                  <circle cx={shapeLeft} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h" className="cursor-ns-resize touch-none" style={{ touchAction: 'none' }} />
+                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY} r={5} fill="#1B2A4A" data-resize="w" className="touch-none" style={{ touchAction: 'none', cursor: 'pointer' }} onPointerDown={handleCirclePointerDown} />
+                  <circle cx={shapeLeft} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h" className="touch-none" style={{ touchAction: 'none', cursor: 'pointer' }} onPointerDown={handleCirclePointerDown} />
                 </>
               )}
               {shape === 'trapezoid' && rotation === 0 && (
                 <>
-                  <circle cx={shapeLeft + trapBotWPx} cy={SVG_CY + trapHPx / 2} r={5} fill="#1B2A4A" data-resize="trap-bot-w" className="cursor-ew-resize touch-none" style={{ touchAction: 'none' }} />
-                  <circle cx={shapeLeft + trapTopWPx} cy={SVG_CY - trapHPx / 2} r={5} fill="#1B2A4A" data-resize="trap-top-w" className="cursor-ew-resize touch-none" style={{ touchAction: 'none' }} />
+                  <circle cx={shapeLeft + trapBotWPx} cy={SVG_CY + trapHPx / 2} r={5} fill="#1B2A4A" data-resize="trap-bot-w" className="touch-none" style={{ touchAction: 'none', cursor: 'pointer' }} onPointerDown={handleCirclePointerDown} />
+                  <circle cx={shapeLeft + trapTopWPx} cy={SVG_CY - trapHPx / 2} r={5} fill="#1B2A4A" data-resize="trap-top-w" className="touch-none" style={{ touchAction: 'none', cursor: 'pointer' }} onPointerDown={handleCirclePointerDown} />
                 </>
               )}
               {shape === 'trapezoid' && rotation === 180 && (
                 <>
-                  <circle cx={shapeLeft + trapTopWPx} cy={SVG_CY + trapHPx / 2} r={5} fill="#1B2A4A" data-resize="trap-top-w" className="cursor-ew-resize touch-none" style={{ touchAction: 'none' }} />
-                  <circle cx={shapeLeft + trapBotWPx} cy={SVG_CY - trapHPx / 2} r={5} fill="#1B2A4A" data-resize="trap-bot-w" className="cursor-ew-resize touch-none" style={{ touchAction: 'none' }} />
+                  <circle cx={shapeLeft + trapTopWPx} cy={SVG_CY + trapHPx / 2} r={5} fill="#1B2A4A" data-resize="trap-top-w" className="touch-none" style={{ touchAction: 'none', cursor: 'pointer' }} onPointerDown={handleCirclePointerDown} />
+                  <circle cx={shapeLeft + trapBotWPx} cy={SVG_CY - trapHPx / 2} r={5} fill="#1B2A4A" data-resize="trap-bot-w" className="touch-none" style={{ touchAction: 'none', cursor: 'pointer' }} onPointerDown={handleCirclePointerDown} />
                 </>
               )}
               {shape === 'trapezoid' && rotation === 90 && (
-                <circle cx={shapeLeft + trapBotWPx} cy={SVG_CY + trapHPx / 2} r={5} fill="#1B2A4A" data-resize="trap-bot-w" className="cursor-ew-resize touch-none" style={{ touchAction: 'none' }} />
+                <circle cx={shapeLeft + trapBotWPx} cy={SVG_CY + trapHPx / 2} r={5} fill="#1B2A4A" data-resize="trap-bot-w" className="touch-none" style={{ touchAction: 'none', cursor: 'pointer' }} onPointerDown={handleCirclePointerDown} />
               )}
               {shape === 'pentagon' && (
                 <>
-                  <circle cx={shapeLeft} cy={SVG_CY - pentHPx / 2} r={5} fill="#1B2A4A" data-resize="pent-h" className="cursor-ns-resize touch-none" style={{ touchAction: 'none' }} />
-                  <circle cx={shapeLeft} cy={SVG_CY + pentHPx / 2} r={5} fill="#1B2A4A" data-resize="pent-h-inv" className="cursor-ns-resize touch-none" style={{ touchAction: 'none' }} />
-                  <circle cx={shapeLeft + pentWPx} cy={SVG_CY - pentHPx / 2} r={5} fill="#1B2A4A" data-resize="pent-w" className="cursor-ew-resize touch-none" style={{ touchAction: 'none' }} />
-                  <circle cx={shapeLeft + pentIndentXPx} cy={SVG_CY} r={5} fill="#1B2A4A" data-resize="pent-indent" className="cursor-ew-resize touch-none" style={{ touchAction: 'none' }} />
+                  <circle cx={shapeLeft} cy={SVG_CY - pentHPx / 2} r={5} fill="#1B2A4A" data-resize="pent-h" className="touch-none" style={{ touchAction: 'none', cursor: 'pointer' }} onPointerDown={handleCirclePointerDown} />
+                  <circle cx={shapeLeft} cy={SVG_CY + pentHPx / 2} r={5} fill="#1B2A4A" data-resize="pent-h-inv" className="touch-none" style={{ touchAction: 'none', cursor: 'pointer' }} onPointerDown={handleCirclePointerDown} />
+                  <circle cx={shapeLeft + pentWPx} cy={SVG_CY - pentHPx / 2} r={5} fill="#1B2A4A" data-resize="pent-w" className="touch-none" style={{ touchAction: 'none', cursor: 'pointer' }} onPointerDown={handleCirclePointerDown} />
+                  <circle cx={shapeLeft + pentIndentXPx} cy={SVG_CY} r={5} fill="#1B2A4A" data-resize="pent-indent" className="touch-none" style={{ touchAction: 'none', cursor: 'pointer' }} onPointerDown={handleCirclePointerDown} />
                 </>
               )}
 
