@@ -400,7 +400,7 @@ export default function RevolutionMakerExplorer() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(el.clientWidth, el.clientHeight);
     renderer.setClearColor(0xffffff);
-    renderer.domElement.style.touchAction = 'none';
+    renderer.domElement.style.touchAction = 'pan-y';
     renderer.domElement.style.pointerEvents = 'auto';
     el.appendChild(renderer.domElement);
 
@@ -511,7 +511,7 @@ export default function RevolutionMakerExplorer() {
     let lastX = 0, lastY = 0, pinch = 0;
 
     const onDown = (e: PointerEvent) => {
-      e.preventDefault();
+      if (ptrs.size >= 1) e.preventDefault();
       autoRotating = false;
       renderer.domElement.setPointerCapture(e.pointerId);
       ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -854,12 +854,12 @@ export default function RevolutionMakerExplorer() {
   return (
     <div className="flex flex-col gap-4">
       {/* Shape tabs */}
-      <div className="flex flex-wrap gap-1 bg-white border border-navy/10 rounded-xl p-1 w-full">
+      <div className="grid grid-cols-4 gap-1 bg-white border border-navy/10 rounded-xl p-1 w-full">
         {SHAPES.map(({ key, label }) => (
           <button
             key={key}
             onClick={() => handleShapeChange(key)}
-            className={`flex-1 px-2 py-2 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+            className={`text-center px-1 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
               shape === key
                 ? 'bg-navy text-white shadow-sm'
                 : 'text-muted hover:text-navy'
@@ -873,7 +873,7 @@ export default function RevolutionMakerExplorer() {
       {/* Main area */}
       <div className="flex flex-col md:flex-row gap-4 items-stretch">
         {/* 2D SVG view */}
-        <div className="w-full md:w-2/5 bg-white rounded-2xl border border-navy/10 p-3 flex flex-col gap-2 min-h-[320px] touch-none select-none">
+        <div className="w-full md:w-2/5 bg-white rounded-2xl border border-navy/10 p-3 flex flex-col gap-2 min-h-[320px] select-none">
           <div className="flex items-center justify-between min-h-[28px]">
             <p className="text-xs font-semibold text-muted uppercase tracking-wide">2D 편집 뷰</p>
             {hasDir && (
@@ -1049,7 +1049,7 @@ export default function RevolutionMakerExplorer() {
           <div className="relative flex-1" style={{ pointerEvents: 'none' }}>
             <div
               ref={mountRef}
-              className="w-full aspect-[4/3] md:aspect-auto md:h-[340px] bg-white rounded-2xl border border-navy/10 overflow-hidden cursor-grab active:cursor-grabbing touch-none"
+              className="w-full aspect-[4/3] md:aspect-auto md:h-[340px] bg-white rounded-2xl border border-navy/10 overflow-hidden cursor-grab active:cursor-grabbing"
             />
             <button
               onClick={() => setWireframe(v => !v)}
