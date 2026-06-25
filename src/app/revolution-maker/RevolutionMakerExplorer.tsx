@@ -391,7 +391,7 @@ export default function RevolutionMakerExplorer() {
       emissiveIntensity: 0.2,
       shininess: 0,
       transparent: true,
-      opacity: 0.4,
+      opacity: 0.65,
       side: THREE.BackSide,
       depthWrite: false, // 깊이 버퍼 미기록 → 외면에 가려지지 않음
     });
