@@ -21,6 +21,9 @@ const WORLD_H = 2.0;
 const PX_TO_WORLD = WORLD_H / SH_H;
 const SVG_SCALE = SH_H / WORLD_H; // 76 px per world unit
 const SVG_CY = SH_TOP + SH_H / 2; // 148
+const MIN_SHAPE_W = 32;
+const MIN_SHAPE_H = 48;
+const MAX_SHAPE_H = 240;
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 type ShapeType = 'rect' | 'rtriangle' | 'itriangle' | 'semicircle' | 'circle' | 'trapezoid' | 'pentagon';
@@ -49,14 +52,15 @@ const SHAPE_DIRECTIONS: Partial<Record<ShapeType, Rotation[]>> = {
 //   - x >= 0 for all points
 //   - Profile should not self-intersect when revolved
 //
-function getPoints(shape: ShapeType, rotation: Rotation, offsetPx: number): THREE.Vector2[] {
+function getPoints(shape: ShapeType, rotation: Rotation, offsetPx: number, shapeWPx = SH_W, shapeHPx = SH_H): THREE.Vector2[] {
   const raw = offsetPx < SNAP ? 0 : offsetPx;
   const d = raw * PX_TO_WORLD;
-  const w = SH_W * PX_TO_WORLD;     // ≈ 1.474
-  const h = WORLD_H;                 // = 2.0
+  const resizable = shape === 'rect' || shape === 'rtriangle' || shape === 'itriangle';
+  const w = (resizable ? shapeWPx : SH_W) * PX_TO_WORLD;
+  const h = (resizable ? shapeHPx : SH_H) * PX_TO_WORLD;
   const wBot = TRAP_W_BOT * PX_TO_WORLD; // ≈ 1.711
   const wTop = TRAP_W_TOP * PX_TO_WORLD; // ≈ 0.895
-  const r = h / 2;                   // = 1.0
+  const r = h / 2;
 
   if (shape === 'semicircle') {
     const N = 33;
@@ -99,7 +103,7 @@ function getPoints(shape: ShapeType, rotation: Rotation, offsetPx: number): THRE
       }
       if (rotation === 90) {
         // Dir 3: right angle top-left, apex at bottom
-        return [new THREE.Vector2(d, -1), new THREE.Vector2(d + w, 1), new THREE.Vector2(d, 1)];
+        return [new THREE.Vector2(d, -r), new THREE.Vector2(d + w, r), new THREE.Vector2(d, r)];
       }
       if (rotation === 180) {
         // Dir 2: revolve around short leg (w) → wider, flatter cone (different proportions)
@@ -107,53 +111,58 @@ function getPoints(shape: ShapeType, rotation: Rotation, offsetPx: number): THRE
       }
       if (rotation === 1) {
         // Dir 5: 빗변(hyp) → 오른쪽 수직변 → 외부 원기둥 + 내부 원뿔
-        return [new THREE.Vector2(d, -1), new THREE.Vector2(d + w, 1), new THREE.Vector2(d + w, -1)];
+        return [new THREE.Vector2(d, -r), new THREE.Vector2(d + w, r), new THREE.Vector2(d + w, -r)];
       }
       // Dir 1: right angle bottom-left, apex at top
-      return [new THREE.Vector2(d, -1), new THREE.Vector2(d + w, -1), new THREE.Vector2(d, 1)];
+      return [new THREE.Vector2(d, -r), new THREE.Vector2(d + w, -r), new THREE.Vector2(d, r)];
     }
 
     if (shape === 'itriangle') {
       // Only one valid orientation: left (long) edge on axis → double cone
-      return [new THREE.Vector2(d, -1), new THREE.Vector2(d + w, 0), new THREE.Vector2(d, 1)];
+      return [new THREE.Vector2(d, -r), new THREE.Vector2(d + w, 0), new THREE.Vector2(d, r)];
     }
 
     if (shape === 'pentagon') {
       // Butterfly: wide at bottom and top, pinched waist at middle
+      // pentagon is not resizable, so r = WORLD_H/2 = 1.0 always
+      const rP = SH_H * PX_TO_WORLD / 2;
+      const wP = SH_W * PX_TO_WORLD;
       return [
-        new THREE.Vector2(d, -1),
-        new THREE.Vector2(d + w, -1),
-        new THREE.Vector2(d + w * 0.1, 0),
-        new THREE.Vector2(d + w, 1),
-        new THREE.Vector2(d, 1),
+        new THREE.Vector2(d, -rP),
+        new THREE.Vector2(d + wP, -rP),
+        new THREE.Vector2(d + wP * 0.1, 0),
+        new THREE.Vector2(d + wP, rP),
+        new THREE.Vector2(d, rP),
       ];
     }
 
-    // trapezoid
+    // trapezoid (not resizable, use fixed world values)
+    const rT = SH_H * PX_TO_WORLD / 2;
+    const wT = SH_W * PX_TO_WORLD;
     if (rotation === 90) {
       // 아래 직사각형 + 위 삼각형 → 원기둥+원뿔 합성체
       return [
-        new THREE.Vector2(d, -1),
-        new THREE.Vector2(d + w, -1),
-        new THREE.Vector2(d + w, 0),
-        new THREE.Vector2(d, 1),
+        new THREE.Vector2(d, -rT),
+        new THREE.Vector2(d + wT, -rT),
+        new THREE.Vector2(d + wT, 0),
+        new THREE.Vector2(d, rT),
       ];
     }
     if (rotation === 180) {
       // Narrow side at bottom, wide side at top (inverted frustum)
       return [
-        new THREE.Vector2(d, -1),
-        new THREE.Vector2(d + wTop, -1),
-        new THREE.Vector2(d + wBot, 1),
-        new THREE.Vector2(d, 1),
+        new THREE.Vector2(d, -rT),
+        new THREE.Vector2(d + wTop, -rT),
+        new THREE.Vector2(d + wBot, rT),
+        new THREE.Vector2(d, rT),
       ];
     }
     // 0°: wide side at bottom, narrow side at top (standard frustum)
     return [
-      new THREE.Vector2(d, -1),
-      new THREE.Vector2(d + wBot, -1),
-      new THREE.Vector2(d + wTop, 1),
-      new THREE.Vector2(d, 1),
+      new THREE.Vector2(d, -rT),
+      new THREE.Vector2(d + wBot, -rT),
+      new THREE.Vector2(d + wTop, rT),
+      new THREE.Vector2(d, rT),
     ];
   };
 
@@ -273,6 +282,8 @@ export default function RevolutionMakerExplorer() {
   const [angle, setAngle] = useState(360);
   const [wireframe, setWireframe] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [shapeWPx, setShapeWPx] = useState(SH_W);
+  const [shapeHPx, setShapeHPx] = useState(SH_H);
 
   const meshRef = useRef<THREE.Mesh | null>(null);
   const meshInteriorRef = useRef<THREE.Mesh | null>(null);
@@ -292,10 +303,21 @@ export default function RevolutionMakerExplorer() {
   // Refs for values read inside native event handlers (avoids stale closures)
   const shapeRef = useRef<ShapeType>('rect');
   const offsetPxRef = useRef<number>(0);
+  const shapeWPxRef = useRef(SH_W);
+  const shapeHPxRef = useRef(SH_H);
+  const resizeDragState = useRef<{
+    axis: 'x' | 'y';
+    startClient: number;
+    startSize: number;
+    yInv: boolean;
+    maxW: number;
+  } | null>(null);
 
   function handleShapeChange(s: ShapeType) {
     setShape(s);
     setRotation(0);
+    setShapeWPx(SH_W);
+    setShapeHPx(SH_H);
   }
 
   function handleAngleChange(v: number) {
@@ -523,7 +545,7 @@ export default function RevolutionMakerExplorer() {
     const scene = sceneRef.current;
     if (!mesh || !meshInterior || !scene) return;
 
-    const rawPoints = getPoints(shape, rotation, offsetPx);
+    const rawPoints = getPoints(shape, rotation, offsetPx, shapeWPx, shapeHPx);
 
     // Remove the last horizontal closing segment to open the top.
     // This lets you look inside from above — the BackSide interior mesh then
@@ -617,7 +639,7 @@ export default function RevolutionMakerExplorer() {
     const wf = materialRef.current?.wireframe ?? false;
     solidEdge.visible = !wf;
     hiddenEdge.visible = !wf;
-  }, [shape, rotation, offsetPx, angle]);
+  }, [shape, rotation, offsetPx, angle, shapeWPx, shapeHPx]);
 
   // ── Wireframe update ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -640,15 +662,46 @@ export default function RevolutionMakerExplorer() {
 
     const onDown = (e: PointerEvent) => {
       e.preventDefault();
+      const resizeAttr = (e.target as SVGElement).getAttribute('data-resize');
+      if (resizeAttr) {
+        const isWidth = resizeAttr === 'w';
+        resizeDragState.current = {
+          axis: isWidth ? 'x' : 'y',
+          startClient: isWidth ? e.clientX : e.clientY,
+          startSize: isWidth ? shapeWPxRef.current : shapeHPxRef.current,
+          yInv: resizeAttr === 'h',
+          maxW: SVG_W - 12 - AXIS_X - offsetPxRef.current,
+        };
+        svg.style.cursor = isWidth ? 'ew-resize' : 'ns-resize';
+        svg.setPointerCapture(e.pointerId);
+        return;
+      }
       dragState.current = { startPx: e.clientX, startOffset: offsetPxRef.current };
+      svg.style.cursor = 'grabbing';
       svg.setPointerCapture(e.pointerId);
     };
 
     const onMove = (e: PointerEvent) => {
-      if (!dragState.current) return;
       e.preventDefault();
       const rect = svg.getBoundingClientRect();
       const svgScale = SVG_W / rect.width;
+
+      if (resizeDragState.current) {
+        const rd = resizeDragState.current;
+        if (rd.axis === 'x') {
+          const dx = (e.clientX - rd.startClient) * svgScale;
+          const nextW = Math.max(MIN_SHAPE_W, Math.min(rd.maxW, rd.startSize + dx));
+          setShapeWPx(nextW);
+        } else {
+          const dy = (e.clientY - rd.startClient) * svgScale;
+          const delta = rd.yInv ? -dy : dy;
+          const nextH = Math.max(MIN_SHAPE_H, Math.min(MAX_SHAPE_H, rd.startSize + delta));
+          setShapeHPx(nextH);
+        }
+        return;
+      }
+
+      if (!dragState.current) return;
       const dx = (e.clientX - dragState.current.startPx) * svgScale;
       const maxOff = shapeRef.current === 'circle' ? CIRCLE_MAX_OFFSET : MAX_OFFSET;
       let next = Math.max(0, Math.min(maxOff, dragState.current.startOffset + dx));
@@ -656,7 +709,11 @@ export default function RevolutionMakerExplorer() {
       setOffsetPx(next);
     };
 
-    const onUp = () => { dragState.current = null; };
+    const onUp = () => {
+      dragState.current = null;
+      resizeDragState.current = null;
+      svg.style.cursor = '';
+    };
 
     svg.addEventListener('pointerdown', onDown, { passive: false });
     svg.addEventListener('pointermove', onMove, { passive: false });
@@ -675,6 +732,11 @@ export default function RevolutionMakerExplorer() {
   // Keep refs in sync so native event handlers always see the latest values
   shapeRef.current = shape;
   offsetPxRef.current = offsetPx;
+  shapeWPxRef.current = shapeWPx;
+  shapeHPxRef.current = shapeHPx;
+  const isResizable = shape === 'rect' || shape === 'rtriangle' || shape === 'itriangle';
+  const wW = (isResizable ? shapeWPx : SH_W) / SVG_SCALE;
+  const rW = (isResizable ? shapeHPx : SH_H) / 2 / SVG_SCALE;
   const snapped = offsetPx < SNAP;
   const shapeLeft = AXIS_X + offsetPx;
   const { name: shapeName, desc: shapeDesc } = getNameDesc(shape, rotation, offsetPx, angle);
@@ -697,41 +759,39 @@ export default function RevolutionMakerExplorer() {
 
   // Polygon points for SVG (world coords → SVG pixels)
   const polyPts = (() => {
-    const w = SH_W * PX_TO_WORLD;
-    const h = WORLD_H;
     const wBot = TRAP_W_BOT * PX_TO_WORLD;
     const wTop = TRAP_W_TOP * PX_TO_WORLD;
-    const r = h / 2;
+    const hW = rW * 2;
     const d = d_svg;
 
     let verts: [number, number][];
 
     if (shape === 'rect') {
-      verts = [[d, -r], [d + w, -r], [d + w, r], [d, r]];
+      verts = [[d, -rW], [d + wW, -rW], [d + wW, rW], [d, rW]];
     } else if (shape === 'rtriangle') {
       if (rotation === 270) {
-        const L = Math.sqrt(w * w + h * h);
-        verts = [[d, -L / 2], [d + (w * h) / L, (h * h - w * w) / (2 * L)], [d, L / 2]];
+        const L = Math.sqrt(wW * wW + hW * hW);
+        verts = [[d, -L / 2], [d + (wW * hW) / L, (hW * hW - wW * wW) / (2 * L)], [d, L / 2]];
       } else if (rotation === 90) {
-        verts = [[d, -1], [d + w, 1], [d, 1]];
+        verts = [[d, -rW], [d + wW, rW], [d, rW]];
       } else if (rotation === 180) {
-        verts = [[d, -w / 2], [d + h, -w / 2], [d, w / 2]];
+        verts = [[d, -wW / 2], [d + hW, -wW / 2], [d, wW / 2]];
       } else if (rotation === 1) {
-        verts = [[d, -1], [d + w, -1], [d + w, 1]];
+        verts = [[d, -rW], [d + wW, rW], [d + wW, -rW]];
       } else {
-        verts = [[d, -1], [d + w, -1], [d, 1]];
+        verts = [[d, -rW], [d + wW, -rW], [d, rW]];
       }
     } else if (shape === 'itriangle') {
-      verts = [[d, -1], [d + w, 0], [d, 1]];
+      verts = [[d, -rW], [d + wW, 0], [d, rW]];
     } else if (shape === 'pentagon') {
-      verts = [[d, -1], [d + w, -1], [d + w * 0.1, 0], [d + w, 1], [d, 1]];
+      verts = [[d, -rW], [d + wW, -rW], [d + wW * 0.1, 0], [d + wW, rW], [d, rW]];
     } else if (shape === 'trapezoid') {
       if (rotation === 90) {
-        verts = [[d, 1], [d + w, 0], [d + w, -1], [d, -1]];
+        verts = [[d, rW], [d + wW, 0], [d + wW, -rW], [d, -rW]];
       } else if (rotation === 180) {
-        verts = [[d, -1], [d + wTop, -1], [d + wBot, 1], [d, 1]];
+        verts = [[d, -rW], [d + wTop, -rW], [d + wBot, rW], [d, rW]];
       } else {
-        verts = [[d, -1], [d + wBot, -1], [d + wTop, 1], [d, 1]];
+        verts = [[d, -rW], [d + wBot, -rW], [d + wTop, rW], [d, rW]];
       }
     } else {
       return null; // semicircle, circle
@@ -784,7 +844,7 @@ export default function RevolutionMakerExplorer() {
               width={SVG_W}
               height={SVG_H}
               viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-              className="select-none touch-none max-w-full cursor-grab active:cursor-grabbing"
+              className="select-none touch-none max-w-full cursor-grab"
             >
               {/* Rotation axis */}
               <line
@@ -854,6 +914,38 @@ export default function RevolutionMakerExplorer() {
                   strokeWidth="2"
                   strokeLinejoin="round"
                 />
+              )}
+
+              {/* Resize handles */}
+              {shape === 'rect' && (
+                <>
+                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY} r={5} fill="#1B2A4A" data-resize="w" style={{ cursor: 'ew-resize' }} />
+                  <circle cx={shapeLeft + shapeWPx / 2} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h" style={{ cursor: 'ns-resize' }} />
+                </>
+              )}
+              {shape === 'rtriangle' && rotation === 0 && (
+                <>
+                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY + shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="w" style={{ cursor: 'ew-resize' }} />
+                  <circle cx={shapeLeft} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h" style={{ cursor: 'ns-resize' }} />
+                </>
+              )}
+              {shape === 'rtriangle' && rotation === 90 && (
+                <>
+                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="w" style={{ cursor: 'ew-resize' }} />
+                  <circle cx={shapeLeft} cy={SVG_CY + shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h-inv" style={{ cursor: 'ns-resize' }} />
+                </>
+              )}
+              {shape === 'rtriangle' && rotation === 1 && (
+                <>
+                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="w" style={{ cursor: 'ew-resize' }} />
+                  <circle cx={shapeLeft} cy={SVG_CY + shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h-inv" style={{ cursor: 'ns-resize' }} />
+                </>
+              )}
+              {shape === 'itriangle' && (
+                <>
+                  <circle cx={shapeLeft + shapeWPx} cy={SVG_CY} r={5} fill="#1B2A4A" data-resize="w" style={{ cursor: 'ew-resize' }} />
+                  <circle cx={shapeLeft} cy={SVG_CY - shapeHPx / 2} r={5} fill="#1B2A4A" data-resize="h" style={{ cursor: 'ns-resize' }} />
+                </>
               )}
 
               {/* Drag hint */}
