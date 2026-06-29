@@ -1,6 +1,6 @@
 import type { ComponentType } from "react";
 import Link from "next/link";
-import { Box, X, Orbit, type LucideIcon } from "lucide-react";
+import { Box, X, Orbit, Pentagon, type LucideIcon } from "lucide-react";
 import RelationMiniIcon from "./line-relations/RelationMiniIcon";
 
 interface Tool {
@@ -34,6 +34,13 @@ const tools: Tool[] = [
     title: "회전체 생성기",
     desc: "평면도형을 회전축에 붙이고 슬라이더로 각도를 조절해 3D 회전체를 실시간으로 만드는 탐구 도구",
     tags: ["3D", "회전체", "원기둥", "원뿔", "구"],
+  },
+  {
+    href: "/polyhedra",
+    icon: Pentagon,
+    title: "정다면체 탐구기",
+    desc: "5가지 정다면체를 3D로 탐구하고 꼭짓점·모서리·면을 시각화하며 오일러 공식 V−E+F=2를 확인하는 인터랙티브 도구",
+    tags: ["3D", "정다면체", "오일러", "플라톤"],
   },
 ];
 
