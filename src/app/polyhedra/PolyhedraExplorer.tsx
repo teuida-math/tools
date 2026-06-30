@@ -605,6 +605,16 @@ export default function PolyhedraExplorer() {
       {/* ─── 심화 tab ─── */}
       {activeTab === 'advanced' && (
         <div className="flex flex-col gap-4">
+          {/* Dual interactive */}
+          {poly === 'cube' ? (
+            <PolyhedraDual />
+          ) : (
+            <div className="bg-white rounded-2xl border border-navy/10 min-h-[480px] flex flex-col items-center justify-center gap-2 text-center p-5">
+              <p className="text-sm font-medium text-navy">쌍대 다면체 인터랙티브</p>
+              <p className="text-xs text-muted break-keep">현재 도형의 쌍대 다면체를 3D로 비교하는 기능이 준비 중입니다</p>
+            </div>
+          )}
+
           <div className="bg-white rounded-2xl border border-navy/10 p-5 flex flex-col gap-4">
             <div>
               <p className="text-xs font-semibold text-navy uppercase tracking-widest mb-1">쌍대 관계</p>
@@ -666,18 +676,6 @@ export default function PolyhedraExplorer() {
                 </tbody>
               </table>
             </div>
-          </div>
-
-          {/* Dual interactive */}
-          <div className="bg-white rounded-2xl border border-navy/10 overflow-hidden min-h-[480px]">
-            {poly === 'cube' ? (
-              <PolyhedraDual />
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center gap-2 text-center p-5">
-                <p className="text-sm font-medium text-navy">쌍대 다면체 인터랙티브</p>
-                <p className="text-xs text-muted break-keep">현재 도형의 쌍대 다면체를 3D로 비교하는 기능이 준비 중입니다</p>
-              </div>
-            )}
           </div>
         </div>
       )}

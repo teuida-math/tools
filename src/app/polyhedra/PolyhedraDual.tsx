@@ -61,19 +61,18 @@ export default function PolyhedraDual() {
     const W = el.clientWidth  || rect.width  || 400;
     const H = el.clientHeight || rect.height || 400;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(W, H);
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    renderer.setClearColor(0xf0f4f8);
     el.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 100);
     camera.position.set(5, 4, 6);
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-    const dir = new THREE.DirectionalLight(0xffffff, 0.9);
-    dir.position.set(5, 8, 6);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.6);
+    dir.position.set(4, 6, 4);
     scene.add(dir);
 
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -83,7 +82,7 @@ export default function PolyhedraDual() {
     controls.maxDistance = 15;
 
     const cubeGeo = new THREE.BoxGeometry(HALF * 2, HALF * 2, HALF * 2);
-    const cubeMat = new THREE.MeshPhongMaterial({ color: 0xC8D8E8, transparent: true, opacity: 0.7 });
+    const cubeMat = new THREE.MeshPhongMaterial({ color: 0xf4f2ee, transparent: true, opacity: 0.18 });
     const cubeMesh = new THREE.Mesh(cubeGeo, cubeMat);
     scene.add(cubeMesh);
     scene.add(new THREE.LineSegments(
@@ -124,7 +123,7 @@ export default function PolyhedraDual() {
       if (refs.animating && refs.octaMat) {
         const t = Math.min((performance.now() - refs.animStart) / 800, 1);
         refs.octaMat.opacity = t * 0.4;
-        refs.cubeMat.opacity = 0.7 - 0.55 * t;
+        refs.cubeMat.opacity = 0.18;
         if (t >= 1) refs.animating = false;
       }
       renderer.render(scene, camera);
@@ -174,7 +173,7 @@ export default function PolyhedraDual() {
       // Orange sphere at face center
       const sphere = new THREE.Mesh(
         new THREE.SphereGeometry(0.1, 16, 12),
-        new THREE.MeshPhongMaterial({ color: 0xE8A090 }),
+        new THREE.MeshPhongMaterial({ color: 0x1B2A4A }),
       );
       sphere.position.copy(FACE_CENTERS[fi]);
       refs.scene.add(sphere);
@@ -192,7 +191,7 @@ export default function PolyhedraDual() {
           if (!isAdjacent(arr[i], arr[j])) continue;
           const line = new THREE.Line(
             new THREE.BufferGeometry().setFromPoints([FACE_CENTERS[arr[i]], FACE_CENTERS[arr[j]]]),
-            new THREE.LineBasicMaterial({ color: 0xE8A090 }),
+            new THREE.LineBasicMaterial({ color: 0x1B2A4A, opacity: 1 }),
           );
           refs.scene.add(line);
           refs.edgeLines.push(line);
@@ -208,7 +207,7 @@ export default function PolyhedraDual() {
         geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
         geo.computeVertexNormals();
         const mat = new THREE.MeshPhongMaterial({
-          color: 0xA8D8C8, transparent: true, opacity: 0, side: THREE.DoubleSide,
+          color: 0xf4f2ee, transparent: true, opacity: 0, side: THREE.DoubleSide,
         });
         const mesh = new THREE.Mesh(geo, mat);
         refs.scene.add(mesh);
@@ -256,45 +255,65 @@ export default function PolyhedraDual() {
     }
     s.octaMat = null;
     s.animating = false;
-    s.cubeMat.opacity = 0.7;
+    s.cubeMat.opacity = 0.18;
     clickedRef.current.clear();
     setCount(0);
     setPhase('view');
   }, []);
 
   return (
-    <div className="flex flex-col select-none">
-      <div
-        ref={containerRef}
-        style={{ width: '100%', height: '400px' }}
-      />
-      <div className="flex flex-col items-center gap-2 py-5">
-        {phase === 'view' && (
-          <button
-            onClick={handleStart}
-            className="px-6 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 active:scale-95 transition-all"
-          >
-            쌍대 만들기
-          </button>
-        )}
-        {phase === 'pick' && (
-          <>
-            <p className="text-sm text-gray-500">면을 클릭해 중심점을 찍으세요</p>
-            <p className="text-base font-semibold text-gray-700">6개 중 {count}개</p>
-          </>
-        )}
-        {phase === 'done' && (
-          <>
-            <p className="text-base font-semibold text-orange-500">정팔면체가 완성됐어요!</p>
-            <p className="text-sm text-gray-500">6개 중 6개</p>
-            <button
-              onClick={handleReset}
-              className="mt-1 px-5 py-2 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 active:scale-95 transition-all"
-            >
-              처음으로
-            </button>
-          </>
-        )}
+    <div className="flex flex-col gap-4 select-none">
+      <div className="flex flex-col md:flex-row gap-4 md:items-stretch">
+        {/* 왼쪽 카드: 3D 캔버스 + 버튼 */}
+        <div className="w-full md:flex-1 md:min-w-0 bg-white rounded-2xl overflow-hidden">
+          <div
+            ref={containerRef}
+            className="w-full aspect-square md:aspect-auto md:h-[400px]"
+          />
+          <div className="flex flex-col items-center gap-2 py-5">
+            {phase === 'view' && (
+              <button
+                onClick={handleStart}
+                className="px-6 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 active:scale-95 transition-all"
+              >
+                쌍대 만들기
+              </button>
+            )}
+            {phase === 'pick' && (
+              <>
+                <p className="text-sm text-gray-500">면을 클릭해 중심점을 찍으세요</p>
+                <p className="text-base font-semibold text-gray-700">6개 중 {count}개</p>
+              </>
+            )}
+            {phase === 'done' && (
+              <>
+                <p className="text-base font-semibold text-orange-500">정팔면체가 완성됐어요!</p>
+                <p className="text-sm text-gray-500">6개 중 6개</p>
+                <button
+                  onClick={handleReset}
+                  className="mt-1 px-5 py-2 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 active:scale-95 transition-all"
+                >
+                  처음으로
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* 오른쪽 카드: 쌍대다면체란? */}
+        <div className="w-full md:w-64 md:flex-shrink-0 bg-white rounded-2xl border border-navy/10 p-5 flex flex-col gap-3">
+          <div>
+            <p className="text-xs font-semibold text-navy uppercase tracking-widest mb-1">쌍대다면체란?</p>
+            <p className="text-sm text-muted leading-relaxed break-keep">
+              다면체의 각 면의 중심을 꼭짓점으로 연결하면 새로운 다면체가 만들어져요. 이를 원래 다면체의 쌍대다면체라고 해요.
+            </p>
+          </div>
+          <ul className="flex flex-col gap-1.5 text-sm text-muted list-disc list-inside break-keep">
+            <li>원래 다면체의 면 개수 = 쌍대다면체의 꼭짓점 개수</li>
+            <li>모서리 개수는 쌍대 관계에서도 변하지 않아요</li>
+            <li>쌍대의 쌍대는 다시 원래 도형이 돼요 (정사면체는 자기 자신이 쌍대예요)</li>
+          </ul>
+        </div>
       </div>
     </div>
   );

@@ -30,7 +30,7 @@ const FACE_DEFS = [
     cube: { p: [0, 0, 0] as [number, number, number],  e: [0, 0, 0] as [number, number, number] },
     net:  { p: [0, 0, 0] as [number, number, number],  e: [0, 0, 0] as [number, number, number] },
     phase: [0, 0] as [number, number],
-    color: 0xd6e3f5,
+    color: 0xf4f2ee,
   },
   // Top (위): first to unfold, phase 0 → 1/3
   {
@@ -38,7 +38,7 @@ const FACE_DEFS = [
     cube: { p: [0, H, -H] as [number, number, number],   e: [-Math.PI / 2, 0, 0] as [number, number, number] },
     net:  { p: [0, S, 0] as [number, number, number],    e: [0, 0, 0] as [number, number, number] },
     phase: [0, 1 / 3] as [number, number],
-    color: 0xfde8cc,
+    color: 0xf4f2ee,
   },
   // Left (옆면): phase 1/3 → 2/3
   {
@@ -46,7 +46,7 @@ const FACE_DEFS = [
     cube: { p: [-H, 0, -H] as [number, number, number],  e: [0, -Math.PI / 2, 0] as [number, number, number] },
     net:  { p: [-S, 0, 0] as [number, number, number],   e: [0, 0, 0] as [number, number, number] },
     phase: [1 / 3, 2 / 3] as [number, number],
-    color: 0xd5f0e0,
+    color: 0xf4f2ee,
   },
   // Right (옆면): phase 1/3 → 2/3
   {
@@ -54,7 +54,7 @@ const FACE_DEFS = [
     cube: { p: [H, 0, -H] as [number, number, number],   e: [0, Math.PI / 2, 0] as [number, number, number] },
     net:  { p: [S, 0, 0] as [number, number, number],    e: [0, 0, 0] as [number, number, number] },
     phase: [1 / 3, 2 / 3] as [number, number],
-    color: 0xd5f0e0,
+    color: 0xf4f2ee,
   },
   // Back (옆면): phase 1/3 → 2/3
   {
@@ -62,7 +62,7 @@ const FACE_DEFS = [
     cube: { p: [0, 0, -S] as [number, number, number],   e: [0, Math.PI, 0] as [number, number, number] },
     net:  { p: [S * 2, 0, 0] as [number, number, number], e: [0, 0, 0] as [number, number, number] },
     phase: [1 / 3, 2 / 3] as [number, number],
-    color: 0xeadaf5,
+    color: 0xf4f2ee,
   },
   // Bottom (아래): last to unfold, phase 2/3 → 1
   {
@@ -70,7 +70,7 @@ const FACE_DEFS = [
     cube: { p: [0, -H, -H] as [number, number, number],  e: [Math.PI / 2, 0, 0] as [number, number, number] },
     net:  { p: [0, -S, 0] as [number, number, number],   e: [0, 0, 0] as [number, number, number] },
     phase: [2 / 3, 1] as [number, number],
-    color: 0xfde8cc,
+    color: 0xf4f2ee,
   },
 ] as const;
 
